@@ -331,13 +331,14 @@
     /* ==========================================================
        Public API（JSONP）
        A案：GAS → キャッシュ → DEFAULT の3段フォールバック
+       ※ 修正版：固定コールバック + 二重resolve防止（cb_site_xxx未定義を根絶）
        ========================================================== */
     const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycby5FA9NjNhBY8W3m4xtxB4nNR23K71iE18mUId_xHf-vJho3Nf1z7QgpABEdbdU0IezGQ/exec";
     const SITE_KEY = "model-a";
     const STORAGE_KEY = "cafeSiteData_v21";          // 既存localStorage（あなたの元コード踏襲）
     const LS_CACHE_KEY = "site_current_cache_v1";    // ★ Public API成功キャッシュ（保険）
 
-  /* ------------ Data ------------ */
+    /* ------------ Data ------------ */
     const DEFAULT_DATA = {
       brandColor: "#16a34a",
       brandLine1: "Coffee & Restaurant",
@@ -414,6 +415,11 @@
       try{ return JSON.parse(str); }catch(e){ return null; }
     }
 
+    function safeClone(obj){
+      // structuredClone が無い環境でも落ちない
+      try{ return structuredClone(obj); }catch(e){ return JSON.parse(JSON.stringify(obj)); }
+    }
+
     function saveLocal(){
       try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(window.__SITE_DATA__)); }catch(e){}
     }
@@ -444,9 +450,9 @@
         targets.forEach(el=>{
           if(!el) return;
           if(k.toLowerCase().includes('href')) el.setAttribute('href', d[k] || '#');
-          else if(k==='mapSrc' && el.tagName==='IFRAME') el.src = d[k];
-          else if(k.toLowerCase().includes('image') || el.tagName==='IMG') el.setAttribute('src', d[k]);
-          else el.textContent = d[k];
+          else if(k==='mapSrc' && el.tagName==='IFRAME') el.src = d[k] || '';
+          else if(k.toLowerCase().includes('image') || el.tagName==='IMG') el.setAttribute('src', d[k] || '');
+          else el.textContent = d[k] ?? '';
         });
       }
 
@@ -513,12 +519,14 @@
       card.innerHTML=`<div class="pad"><small class="muted">${n.date||''}</small><h3>${n.title||''}</h3><p>${n.text||''}</p></div>`;
       return card;
     }
+
     function reviewCard(rv){
       const stars='★★★★★'.slice(0, Math.max(0, Math.min(5, rv.rating||0)));
       const card=document.createElement('article'); card.className='card';
       card.innerHTML=`<div class="pad"><strong class="stars" aria-label="評価">${stars}</strong><p class="clamp-3">${rv.text||''}</p><small class="muted">— ${rv.name||'匿名'} ・ ${rv.date||''}</small></div>`;
       return card;
     }
+
     function ensureReviewDates(d){
       let changed=false;
       (d.reviews||[]).forEach((r,i)=>{
@@ -533,44 +541,51 @@
       }
     }
 
-    /* ------------ JSONP load（Public API） ------------ */
+    /* ------------ JSONP load（Public API）【修正版】 ------------ */
     function loadFromPublicApiJSONP(){
       return new Promise((resolve)=>{
         if(!PUBLIC_API_URL){ resolve({ok:false, reason:'no_url'}); return; }
 
-        const cb = "cb_site_" + Math.random().toString(36).slice(2);
-        window[cb] = (res)=>{
+        // ★ 固定コールバック（cb_site_xxx未定義を根絶）
+        const CB = "__SITE_JSONP_CB__";
+        let settled = false;
+
+        const cleanup = (s)=>{
+          try{ if(s) s.remove(); }catch(e){}
+        };
+
+        const finish = (obj)=>{
+          if(settled) return;
+          settled = true;
+          resolve(obj);
+        };
+
+        window[CB] = (res)=>{
           try{
-            // GAS側が res.json でも res.data でも壊れないように吸収
             const payloadText = res && (res.json ?? res.data);
             if(res && res.ok && payloadText){
               const remoteObj = safeJsonParse(payloadText);
               if(remoteObj){
                 saveCache(remoteObj);
-                resolve({ok:true, data:remoteObj, raw:res});
+                finish({ok:true, data:remoteObj, raw:res});
                 return;
               }
             }
           }catch(e){}
-          resolve({ok:false, raw:res});
+          finish({ok:false, raw:res});
         };
 
         const s = document.createElement("script");
-        s.src = `${PUBLIC_API_URL}?path=site&key=${encodeURIComponent(SITE_KEY)}&callback=${encodeURIComponent(cb)}&v=${Date.now()}`;
-        s.onerror = ()=>{
-          resolve({ok:false, reason:'script_error'});
-        };
-        s.onload = ()=>{
-          // callbackが呼ばれないケースもあるので保険（極稀）
-          setTimeout(()=> resolve({ok:false, reason:'timeout'}), 1200);
-        };
+        s.async = true;
+        s.src =
+          `${PUBLIC_API_URL}?path=site&key=${encodeURIComponent(SITE_KEY)}&callback=${encodeURIComponent(CB)}&_=${Date.now()}`;
+
+        s.onerror = ()=>{ cleanup(s); finish({ok:false, reason:'script_error'}); };
+
         document.head.appendChild(s);
 
-        // 終了後クリーンアップ
-        setTimeout(()=>{
-          try{ delete window[cb]; }catch(e){ window[cb]=null; }
-          try{ s.remove(); }catch(e){}
-        }, 2500);
+        // ★ callbackが返らない場合の保険（ただし二重resolve防止済み）
+        setTimeout(()=>{ cleanup(s); finish({ok:false, reason:'timeout'}); }, 2500);
       });
     }
 
@@ -595,6 +610,7 @@
     }
     setHeaderHeightVar();
     window.addEventListener('resize', setHeaderHeightVar);
+
     $H('siteNav')?.addEventListener('click', (e)=>{
       const a = e.target.closest('a[href^="#"]'); if(!a) return;
       const id = a.getAttribute('href'); const el = document.querySelector(id); if(!el) return;
@@ -612,7 +628,7 @@
 
       window.__SITE_DATA__ = storedObj
         ? { ...DEFAULT_DATA, ...storedObj }
-        : structuredClone(DEFAULT_DATA);
+        : safeClone(DEFAULT_DATA);
 
       ensureReviewDates(window.__SITE_DATA__);
       applyData(window.__SITE_DATA__);
@@ -639,7 +655,8 @@
 
       // お知らせトグル
       const newsToggle = $H('newsToggle'), newsMore = $H('newsListMore'); let newsOpen = false;
-      newsToggle.addEventListener('click', (e)=>{ e.preventDefault(); newsOpen = !newsOpen;
+      newsToggle?.addEventListener('click', (e)=>{
+        e.preventDefault(); newsOpen = !newsOpen;
         newsMore.style.display = newsOpen ? 'grid' : 'none';
         newsToggle.setAttribute('aria-expanded', String(newsOpen));
         newsToggle.textContent = newsOpen ? '過去のお知らせを閉じる' : '過去のお知らせも見る';
@@ -647,15 +664,17 @@
 
       // 口コミトグル
       const rvToggle = $H('reviewsToggle'), rvMore = $H('reviewsListMore'); let rvOpen = false;
-      rvToggle.addEventListener('click', (e)=>{ e.preventDefault(); rvOpen = !rvOpen;
+      rvToggle?.addEventListener('click', (e)=>{
+        e.preventDefault(); rvOpen = !rvOpen;
         rvMore.style.display = rvOpen ? 'grid' : 'none';
         rvToggle.setAttribute('aria-expanded', String(rvOpen));
         rvToggle.textContent = rvOpen ? '過去の口コミを閉じる' : '過去の口コミも見る';
       });
 
       // 送信デモ
-      document.getElementById('reserveForm').addEventListener('submit', e=>{
-        e.preventDefault(); alert('送信ありがとうございました！※ 実運用の送信先は編集画面で設定してください。');
+      document.getElementById('reserveForm')?.addEventListener('submit', e=>{
+        e.preventDefault();
+        alert('送信ありがとうございました！※ 実運用の送信先は編集画面で設定してください。');
       });
     })();
 
