@@ -117,7 +117,13 @@
 
       /* 口コミコンパクト：カードpadding縮小＋3行クランプ */
       #reviewsList .card .pad{ padding:12px; }
-      .clamp-3{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+      .clamp-3{
+        display:-webkit-box;
+        -webkit-line-clamp:3;
+        line-clamp:3; /* ★ 警告対策：標準プロパティも併記 */
+        -webkit-box-orient:vertical;
+        overflow:hidden;
+      }
     }
 
     /* ===== Anchor offset（見出しがヘッダーに隠れない） ===== */
@@ -322,56 +328,104 @@
   </footer>
 
   <script>
-    /* ------------ Public API（JSONP / CORS回避） ------------ */
+    /* ==========================================================
+       Public API（JSONP）
+       A案：GAS → キャッシュ → DEFAULT の3段フォールバック
+       ========================================================== */
     const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycby5FA9NjNhBY8W3m4xtxB4nNR23K71iE18mUId_xHf-vJho3Nf1z7QgpABEdbdU0IezGQ/exec";
+    const SITE_KEY = "model-a";
+    const STORAGE_KEY = "cafeSiteData_v21";          // 既存localStorage（あなたの元コード踏襲）
+    const LS_CACHE_KEY = "site_current_cache_v1";    // ★ Public API成功キャッシュ（保険）
 
-    /* ------------ Data ------------ */
+  /* ------------ Data ------------ */
     const DEFAULT_DATA = {
-      brandColor:"#16a34a",
-      brandLine1:"Coffee & Restaurant",
-      brandLine2:"マイルド",
-      heroTitle:"いつもの一日を、ちょっと上質に。",
-      heroLead:"焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。",
-      heroImage:"https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop",
-      hours:"7:00–18:00（L.O. 17:30）/ 火曜定休",
-      address:"徳島県阿南市◯◯1-2-3",
-      parking:"駐車14台／広い出入口で出入りラクラク",
-      mapSrc:"https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik",
-      mapLinkText:"地図を見る", mapLinkHref:"#access",
-      altFormText:"Googleフォームで送る", altFormHref:"#",
-      footerBannerText:"HP開設キャンペーン企画実施中",
-      sectionsMuted:{ reasons:true, menu:false, news:true, reviews:false, info:true, reserve:true },
-      reasons:[
-        { title:"多彩なメニュー", text:"モーニングからランチ、スイーツまで幅広くご用意。", image:"https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1600&auto=format&fit=crop" },
-        { title:"くつろぎの空間", text:"木の温もりを感じる落ち着いた店内。", image:"https://images.unsplash.com/photo-1498654896293-37aacf113fd9?q=80&w=1600&auto=format&fit=crop" },
-        { title:"駐車14台", text:"出入りしやすい広い駐車場を完備。", image:"https://images.unsplash.com/photo-1515266591878-f93e32bc5937?q=80&w=1600&auto=format&fit=crop" }
+      brandColor: "#16a34a",
+      brandLine1: "Coffee & Restaurant",
+      brandLine2: "マイルド",
+      heroTitle: "いつもの一日を、ちょっと上質に。",
+      heroLead: "焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。",
+      heroImage: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop",
+      hours: "7:00–18:00（L.O. 17:30）/ 火曜定休",
+      address: "徳島県阿南市◯◯1-2-3",
+      parking: "駐車14台／広い出入口で出入りラクラク",
+      mapSrc: "https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik",
+      mapLinkText: "地図を見る",
+      mapLinkHref: "#access",
+      altFormText: "Googleフォームで送る",
+      altFormHref: "#",
+      footerBannerText: "HP開設キャンペーン企画実施中",
+      sectionsMuted: {
+        reasons: true,
+        menu: false,
+        news: true,
+        reviews: false,
+        info: true,
+        reserve: true
+      },
+      reasons: [
+        {
+          title: "多彩なメニュー",
+          text: "モーニングからランチ、スイーツまで幅広くご用意。",
+          image: "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1600&auto=format&fit=crop"
+        },
+        {
+          title: "くつろぎの空間",
+          text: "木の温もりを感じる落ち着いた店内。",
+          image: "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?q=80&w=1600&auto=format&fit=crop"
+        },
+        {
+          title: "駐車14台",
+          text: "出入りしやすい広い駐車場を完備。",
+          image: "https://images.unsplash.com/photo-1515266591878-f93e32bc5937?q=80&w=1600&auto=format&fit=crop"
+        }
       ],
-      menu:[
-        { title:"厚切りバタートースト", desc:"外カリッと中ふわり。朝の定番。", price:"¥420", badge:"定番", image:"https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?q=80&w=1600&auto=format&fit=crop" },
-        { title:"喫茶ナポリタン", desc:"鉄板で香ばしく、昔ながらの味。", price:"¥880", badge:"人気", image:"https://images.unsplash.com/photo-1604909052743-88e4922de3f2?q=80&w=1600&auto=format&fit=crop" },
-        { title:"自家焙煎ブレンド", desc:"苦味とコク、香りのバランス◎", price:"¥520", badge:"季節", image:"https://images.unsplash.com/photo-1498804103079-a6351b050096?q=80&w=1600&auto=format&fit=crop" },
-        { title:"プリン", desc:"やさしい甘さの固め食感。", price:"¥480", badge:"", image:"https://images.unsplash.com/photo-1514512364185-4c2b38dea3a5?q=80&w=1600&auto=format&fit=crop" }
+      menu: [
+        {
+          title: "厚切りバタートースト",
+          desc: "外カリッと中ふわり。朝の定番。",
+          price: "¥420",
+          badge: "定番",
+          image: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?q=80&w=1600&auto=format&fit=crop"
+        }
       ],
-      news:[
-        { title:"季節のデザート始まりました", text:"かぼちゃプリン・モンブランをご用意しています。", date:"2025-10-01" },
-        { title:"営業時間変更のお知らせ", text:"10/10は都合により16:00閉店となります。", date:"2025-10-08" },
-        { title:"駐車場が広くて便利", text:"14台駐車可能になりました。", date:"2025-09-20" },
-        { title:"モーニングのパンをリニューアル", text:"バターの香りが増してさらにおいしく。", date:"2025-09-10" },
-        { title:"スタッフ募集", text:"平日朝の時間帯で募集中です。", date:"2025-08-20" }
+      news: [
+        {
+          title: "季節のデザート始まりました",
+          text: "かぼちゃプリン・モンブランをご用意しています。",
+          date: "2025-10-01"
+        }
       ],
-      /* reviewsは最大30件まで保持（表示は最新5件） */
-      reviews:[
-        { name:"A.K.", text:"スタッフが親切で居心地が良い。ナポリタンが絶品でした！", rating:5, date:"2025-10-05" },
-        { name:"M.S.", text:"店内は少し狭いが落ち着く雰囲気。コーヒーの香りが良い。", rating:4, date:"2025-10-02" },
-        { name:"T.N.", text:"デザートが豊富で選ぶのが楽しい。", rating:5, date:"2025-09-28" }
+      reviews: [
+        {
+          name: "A.K.",
+          text: "スタッフが親切で居心地が良い。ナポリタンが絶品でした！",
+          rating: 5,
+          date: "2025-10-05"
+        }
       ]
     };
-    const STORAGE_KEY = "cafeSiteData_v21";
 
     /* ------------ Utils ------------ */
     const $ = (s, r=document)=>r.querySelector(s);
     const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
     const $H = (id)=>document.getElementById(id);
+
+    function safeJsonParse(str){
+      try{ return JSON.parse(str); }catch(e){ return null; }
+    }
+
+    function saveLocal(){
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(window.__SITE_DATA__)); }catch(e){}
+    }
+
+    function saveCache(data){
+      try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(data)); }catch(e){}
+    }
+
+    function loadCache(){
+      const cached = localStorage.getItem(LS_CACHE_KEY);
+      return cached ? safeJsonParse(cached) : null;
+    }
 
     /* ------------ Render ------------ */
     function applyData(d){
@@ -468,38 +522,55 @@
     function ensureReviewDates(d){
       let changed=false;
       (d.reviews||[]).forEach((r,i)=>{
-        if(!r.date){ const dt = new Date(); dt.setDate(dt.getDate() - i); r.date = dt.toISOString().slice(0,10); changed=true; }
+        if(!r.date){
+          const dt = new Date(); dt.setDate(dt.getDate() - i);
+          r.date = dt.toISOString().slice(0,10);
+          changed=true;
+        }
       });
-      if(changed){ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+      if(changed){
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }catch(e){}
+      }
     }
 
-    function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(window.__SITE_DATA__)); }
-
-    /* ------------ JSONP load (Public API) ------------ */
-    function loadFromPublicApi(){
+    /* ------------ JSONP load（Public API） ------------ */
+    function loadFromPublicApiJSONP(){
       return new Promise((resolve)=>{
-        if(!PUBLIC_API_URL){
-          resolve(); return;
-        }
+        if(!PUBLIC_API_URL){ resolve({ok:false, reason:'no_url'}); return; }
+
         const cb = "cb_site_" + Math.random().toString(36).slice(2);
         window[cb] = (res)=>{
           try{
-            if(res && res.ok && res.json){
-              const remote = JSON.parse(res.json);
-              window.__SITE_DATA__ = { ...DEFAULT_DATA, ...remote };
-              ensureReviewDates(window.__SITE_DATA__);
-              applyData(window.__SITE_DATA__);
-              saveLocal();
+            // GAS側が res.json でも res.data でも壊れないように吸収
+            const payloadText = res && (res.json ?? res.data);
+            if(res && res.ok && payloadText){
+              const remoteObj = safeJsonParse(payloadText);
+              if(remoteObj){
+                saveCache(remoteObj);
+                resolve({ok:true, data:remoteObj, raw:res});
+                return;
+              }
             }
           }catch(e){}
-          try{ delete window[cb]; }catch(e){}
-          resolve();
+          resolve({ok:false, raw:res});
         };
 
         const s = document.createElement("script");
-        s.src = `${PUBLIC_API_URL}?callback=${cb}&v=${Date.now()}`;
-        s.onerror = ()=>{ try{ delete window[cb]; }catch(e){} resolve(); };
+        s.src = `${PUBLIC_API_URL}?path=site&key=${encodeURIComponent(SITE_KEY)}&callback=${encodeURIComponent(cb)}&v=${Date.now()}`;
+        s.onerror = ()=>{
+          resolve({ok:false, reason:'script_error'});
+        };
+        s.onload = ()=>{
+          // callbackが呼ばれないケースもあるので保険（極稀）
+          setTimeout(()=> resolve({ok:false, reason:'timeout'}), 1200);
+        };
         document.head.appendChild(s);
+
+        // 終了後クリーンアップ
+        setTimeout(()=>{
+          try{ delete window[cb]; }catch(e){ window[cb]=null; }
+          try{ s.remove(); }catch(e){}
+        }, 2500);
       });
     }
 
@@ -533,12 +604,38 @@
       window.scrollTo({ top:y, behavior:'smooth' });
     });
 
-    /* ------------ Init ------------ */
-    (function init(){
+    /* ------------ Init（★ awaitエラー解消：async化） ------------ */
+    (async function init(){
+      // 1) まずは localStorage（従来）→なければDEFAULT
       const stored = localStorage.getItem(STORAGE_KEY);
-      window.__SITE_DATA__ = stored ? { ...DEFAULT_DATA, ...JSON.parse(stored) } : structuredClone(DEFAULT_DATA);
+      const storedObj = stored ? safeJsonParse(stored) : null;
+
+      window.__SITE_DATA__ = storedObj
+        ? { ...DEFAULT_DATA, ...storedObj }
+        : structuredClone(DEFAULT_DATA);
+
       ensureReviewDates(window.__SITE_DATA__);
       applyData(window.__SITE_DATA__);
+
+      // 2) GAS（JSONP）を試す
+      const remote = await loadFromPublicApiJSONP();
+
+      if(remote && remote.ok && remote.data){
+        // GAS成功 → 上書き + 保存
+        window.__SITE_DATA__ = { ...DEFAULT_DATA, ...remote.data };
+        ensureReviewDates(window.__SITE_DATA__);
+        applyData(window.__SITE_DATA__);
+        saveLocal();
+      }else{
+        // 3) GAS失敗 → キャッシュがあれば使う（保険）
+        const cached = loadCache();
+        if(cached){
+          window.__SITE_DATA__ = { ...DEFAULT_DATA, ...cached };
+          ensureReviewDates(window.__SITE_DATA__);
+          applyData(window.__SITE_DATA__);
+          saveLocal();
+        }
+      }
 
       // お知らせトグル
       const newsToggle = $H('newsToggle'), newsMore = $H('newsListMore'); let newsOpen = false;
@@ -560,9 +657,6 @@
       document.getElementById('reserveForm').addEventListener('submit', e=>{
         e.preventDefault(); alert('送信ありがとうございました！※ 実運用の送信先は編集画面で設定してください。');
       });
-
-      // Public API から最新反映（成功時は上書き）
-      loadFromPublicApi();
     })();
 
     /* ================================
