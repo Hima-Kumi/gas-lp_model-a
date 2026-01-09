@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- Revision: 改訂No.002（運用分離版 / Public API連携） -->
+  <!-- Revision: 最終安定版（運用分離 / Public API連携 / 画像フォールバック強化） -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coffee & Restaurant – マイルド</title>
@@ -54,7 +54,7 @@
     .hero .wrap{ display:grid; gap:20px; align-items:center; grid-template-columns:1.2fr .8fr; }
     @media (max-width:900px){ .hero .wrap{ grid-template-columns:1fr; } }
     .chip{ display:inline-flex; gap:.5em; align-items:center; font-size:.9rem; padding:.4rem .7rem; border-radius:999px; border:1px solid rgba(255,255,255,.16); color:#e5e7eb; background:rgba(255,255,255,.06); }
-    /* ★ Hero画像のアスペクト比を“元通り”に固定（4:3） */
+    /* ★ Hero画像のアスペクト比を固定（4:3） */
     .hero .media-rounded{ aspect-ratio: 4 / 3; max-width: 720px; margin-left:auto; }
     .hero .media-rounded img{ width:100%; height:100%; object-fit:cover; border-radius:clamp(12px,2vw,20px); }
 
@@ -115,12 +115,11 @@
       #reserveForm .actions .btn,
       #reserveForm .actions .btn-ghost{ padding:.65rem .95rem; }
 
-      /* 口コミコンパクト：カードpadding縮小＋3行クランプ */
       #reviewsList .card .pad{ padding:12px; }
       .clamp-3{
         display:-webkit-box;
         -webkit-line-clamp:3;
-        line-clamp:3; /* ★ 警告対策：標準プロパティも併記 */
+        line-clamp:3;
         -webkit-box-orient:vertical;
         overflow:hidden;
       }
@@ -130,11 +129,9 @@
     .section, [id]{ scroll-margin-top: calc(var(--header-h) + 10px); }
 
     /* ★ レビュー星を金色に */
-    .stars{ color:#d4af37; } /* ゴールド */
+    .stars{ color:#d4af37; }
 
-    /* ================================
-       ★ 追記：Liquid Glass（header/footerのみ・最小差分）
-       ================================ */
+    /* ===== Liquid Glass（header/footerのみ・最小差分） ===== */
     :root{
       --glass-bg: color-mix(in srgb, #ffffff 14%, transparent);
       --glass-stroke: color-mix(in srgb, #ffffff 38%, transparent);
@@ -162,23 +159,8 @@
       -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
       box-shadow: var(--glass-shadow);
     }
-    .theme-liquid .card > img,
-    .theme-liquid .card .media > img{
-      outline: 1px solid color-mix(in srgb, #ffffff 20%, transparent);
-      outline-offset: -1px;
-    }
-    .theme-liquid .glassable{
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-stroke);
-      backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
-      -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
-      box-shadow: var(--glass-shadow);
-    }
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-      .theme-liquid .card,
-      .theme-liquid .glassable{
-        background:#fff;
-      }
+      .theme-liquid .card{ background:#fff; }
     }
   </style>
 </head>
@@ -213,7 +195,7 @@
         <p id="heroLead" data-bind="heroLead">焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。</p>
       </div>
       <div class="media-rounded">
-        <img id="heroImage" data-bind="heroImage" src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop" alt="店内の雰囲気">
+        <img id="heroImage" data-bind="heroImage" src="" alt="店内の雰囲気">
       </div>
     </div>
   </section>
@@ -289,7 +271,7 @@
       <h2 class="section-title">アクセス</h2>
       <div class="card">
         <iframe id="mapFrame" data-bind="mapSrc"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik"
+          src=""
           style="width:100%; height:380px; border:0;"></iframe>
       </div>
     </div>
@@ -320,7 +302,6 @@
 
   <!-- Footer banner -->
   <footer class="sticky-banner">
-    <!-- 改訂No.003 追補：フッターバナーにポイントUI起動ボタン -->
     <div class="banner-text" style="gap:.8rem; flex-wrap:wrap;">
       <span id="footerBannerText" data-bind="footerBannerText">HP開設キャンペーン企画実施中</span>
       <a id="openLoyalty" class="btn-ghost" style="padding:.4rem .8rem; border-radius:999px; border:1px solid #e8eaef; cursor:pointer;">ポイント / クーポン</a>
@@ -329,80 +310,54 @@
 
   <script>
     /* ==========================================================
-       Public API（JSONP）
-       A案：GAS → キャッシュ → DEFAULT の3段フォールバック
-       ※ 修正版：固定コールバック + 二重resolve防止（cb_site_xxx未定義を根絶）
+       Public API（JSONP）最終安定版
+       - data/json の両対応
+       - 画像は「空文字ならDEFAULTへフォールバック」
+       - 優先順位: GAS → Cache → localStorage → DEFAULT
        ========================================================== */
+
     const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycby5FA9NjNhBY8W3m4xtxB4nNR23K71iE18mUId_xHf-vJho3Nf1z7QgpABEdbdU0IezGQ/exec";
     const SITE_KEY = "model-a";
-    const STORAGE_KEY = "cafeSiteData_v21";          // 既存localStorage（あなたの元コード踏襲）
-    const LS_CACHE_KEY = "site_current_cache_v1";    // ★ Public API成功キャッシュ（保険）
 
-    /* ------------ Data ------------ */
+    const STORAGE_KEY = "cafeSiteData_v21";       // 旧互換（残す）
+    const LS_CACHE_KEY = "site_current_cache_v1"; // GAS成功キャッシュ
+
+    /* ------------ Default Data（プロトタイプ用） ------------ */
     const DEFAULT_DATA = {
-      brandColor: "#16a34a",
-      brandLine1: "Coffee & Restaurant",
-      brandLine2: "マイルド",
-      heroTitle: "いつもの一日を、ちょっと上質に。",
-      heroLead: "焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。",
-      heroImage: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop",
-      hours: "7:00–18:00（L.O. 17:30）/ 火曜定休",
-      address: "徳島県阿南市◯◯1-2-3",
-      parking: "駐車14台／広い出入口で出入りラクラク",
-      mapSrc: "https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik",
-      mapLinkText: "地図を見る",
-      mapLinkHref: "#access",
-      altFormText: "Googleフォームで送る",
-      altFormHref: "#",
-      footerBannerText: "HP開設キャンペーン企画実施中",
-      sectionsMuted: {
-        reasons: true,
-        menu: false,
-        news: true,
-        reviews: false,
-        info: true,
-        reserve: true
-      },
-      reasons: [
-        {
-          title: "多彩なメニュー",
-          text: "モーニングからランチ、スイーツまで幅広くご用意。",
-          image: "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1600&auto=format&fit=crop"
-        },
-        {
-          title: "くつろぎの空間",
-          text: "木の温もりを感じる落ち着いた店内。",
-          image: "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?q=80&w=1600&auto=format&fit=crop"
-        },
-        {
-          title: "駐車14台",
-          text: "出入りしやすい広い駐車場を完備。",
-          image: "https://images.unsplash.com/photo-1515266591878-f93e32bc5937?q=80&w=1600&auto=format&fit=crop"
-        }
+      brandColor:"#16a34a",
+      brandLine1:"Coffee & Restaurant",
+      brandLine2:"マイルド",
+      heroTitle:"いつもの一日を、ちょっと上質に。",
+      heroLead:"焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。",
+      heroImage:"https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop",
+      hours:"7:00–18:00（L.O. 17:30）/ 火曜定休",
+      address:"徳島県阿南市◯◯1-2-3",
+      parking:"駐車14台／広い出入口で出入りラクラク",
+      mapSrc:"https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik",
+      mapLinkText:"地図を見る", mapLinkHref:"#access",
+      altFormText:"Googleフォームで送る", altFormHref:"#",
+      footerBannerText:"HP開設キャンペーン企画実施中",
+      sectionsMuted:{ reasons:true, menu:false, news:true, reviews:false, info:true, reserve:true },
+      reasons:[
+        { title:"多彩なメニュー", text:"モーニングからランチ、スイーツまで幅広くご用意。", image:"https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1600&auto=format&fit=crop" },
+        { title:"くつろぎの空間", text:"木の温もりを感じる落ち着いた店内。", image:"https://images.unsplash.com/photo-1498654896293-37aacf113fd9?q=80&w=1600&auto=format&fit=crop" },
+        { title:"駐車14台", text:"出入りしやすい広い駐車場を完備。", image:"https://images.unsplash.com/photo-1515266591878-f93e32bc5937?q=80&w=1600&auto=format&fit=crop" }
       ],
-      menu: [
-        {
-          title: "厚切りバタートースト",
-          desc: "外カリッと中ふわり。朝の定番。",
-          price: "¥420",
-          badge: "定番",
-          image: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?q=80&w=1600&auto=format&fit=crop"
-        }
+      menu:[
+        { title:"厚切りバタートースト", desc:"外カリッと中ふわり。朝の定番。", price:"¥420", badge:"定番", image:"https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?q=80&w=1600&auto=format&fit=crop" },
+        { title:"喫茶ナポリタン", desc:"鉄板で香ばしく、昔ながらの味。", price:"¥880", badge:"人気", image:"https://images.unsplash.com/photo-1604909052743-88e4922de3f2?q=80&w=1600&auto=format&fit=crop" },
+        { title:"自家焙煎ブレンド", desc:"苦味とコク、香りのバランス◎", price:"¥520", badge:"季節", image:"https://images.unsplash.com/photo-1498804103079-a6351b050096?q=80&w=1600&auto=format&fit=crop" },
+        { title:"プリン", desc:"やさしい甘さの固め食感。", price:"¥480", badge:"", image:"https://images.unsplash.com/photo-1514512364185-4c2b38dea3a5?q=80&w=1600&auto=format&fit=crop" }
       ],
-      news: [
-        {
-          title: "季節のデザート始まりました",
-          text: "かぼちゃプリン・モンブランをご用意しています。",
-          date: "2025-10-01"
-        }
+      news:[
+        { title:"季節のデザート始まりました", text:"かぼちゃプリン・モンブランをご用意しています。", date:"2025-10-01" },
+        { title:"営業時間変更のお知らせ", text:"10/10は都合により16:00閉店となります。", date:"2025-10-08" },
+        { title:"駐車場が広くて便利", text:"14台駐車可能になりました。", date:"2025-09-20" }
       ],
-      reviews: [
-        {
-          name: "A.K.",
-          text: "スタッフが親切で居心地が良い。ナポリタンが絶品でした！",
-          rating: 5,
-          date: "2025-10-05"
-        }
+      reviews:[
+        { name:"A.K.", text:"スタッフが親切で居心地が良い。ナポリタンが絶品でした！", rating:5, date:"2025-10-05" },
+        { name:"M.S.", text:"店内は落ち着く雰囲気。コーヒーの香りが良い。", rating:4, date:"2025-10-02" },
+        { name:"T.N.", text:"デザートが豊富で選ぶのが楽しい。", rating:5, date:"2025-09-28" }
       ]
     };
 
@@ -411,48 +366,110 @@
     const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
     const $H = (id)=>document.getElementById(id);
 
-    function safeJsonParse(str){
+    function safeParse(str){
       try{ return JSON.parse(str); }catch(e){ return null; }
     }
-
-    function safeClone(obj){
-      // structuredClone が無い環境でも落ちない
-      try{ return structuredClone(obj); }catch(e){ return JSON.parse(JSON.stringify(obj)); }
+    function saveLS(key, obj){
+      try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
+    }
+    function loadLS(key){
+      try{
+        const t = localStorage.getItem(key);
+        return t ? safeParse(t) : null;
+      }catch(e){ return null; }
     }
 
-    function saveLocal(){
-      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(window.__SITE_DATA__)); }catch(e){}
+    // 画像など「空文字で保存された値」は DEFAULT にフォールバックしたい
+    function emptyToDefault(val, def){
+      if(val === undefined || val === null) return def;
+      if(typeof val === "string" && val.trim() === "") return def;
+      return val;
     }
 
-    function saveCache(data){
-      try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(data)); }catch(e){}
-    }
+    // 適用前に「空画像」をDEFAULTへ戻す（表示安定）
+    function normalizeForView(d){
+      const out = { ...DEFAULT_DATA, ...(d||{}) };
 
-    function loadCache(){
-      const cached = localStorage.getItem(LS_CACHE_KEY);
-      return cached ? safeJsonParse(cached) : null;
+      // 画像・mapSrcを空ならデフォルトへ
+      out.heroImage = emptyToDefault(out.heroImage, DEFAULT_DATA.heroImage);
+      out.mapSrc    = emptyToDefault(out.mapSrc, DEFAULT_DATA.mapSrc);
+
+      // reasons/menu の image も空ならデフォルトの該当があれば使う（なければ空のまま）
+      out.reasons = Array.isArray(out.reasons) ? out.reasons : DEFAULT_DATA.reasons.slice();
+      out.reasons = out.reasons.slice(0,3).map((it,i)=>{
+        const base = DEFAULT_DATA.reasons[i] || {};
+        return {
+          title: it?.title ?? "",
+          text:  it?.text  ?? "",
+          image: emptyToDefault(it?.image, base.image || "")
+        };
+      });
+
+      out.menu = Array.isArray(out.menu) ? out.menu : DEFAULT_DATA.menu.slice();
+      out.menu = out.menu.map((it,i)=>{
+        const base = DEFAULT_DATA.menu[i] || {};
+        return {
+          title: it?.title ?? "",
+          desc:  it?.desc  ?? "",
+          price: it?.price ?? "",
+          badge: it?.badge ?? "",
+          image: emptyToDefault(it?.image, base.image || "")
+        };
+      });
+
+      out.news = Array.isArray(out.news) ? out.news : [];
+      out.reviews = Array.isArray(out.reviews) ? out.reviews : [];
+
+      out.sectionsMuted = out.sectionsMuted || DEFAULT_DATA.sectionsMuted;
+
+      return out;
     }
 
     /* ------------ Render ------------ */
     function applyData(d){
       document.documentElement.style.setProperty('--brand', d.brandColor || DEFAULT_DATA.brandColor);
+
+      // bind
       const bindMap = {
-        brandLine1:'.brand__name .line1', brandLine2:'.brand__name .line2',
-        heroTitle:'#heroTitle', heroLead:'#heroLead', heroImage:'#heroImage',
-        hours:['#hours','#hoursChip'], address:'#addr', parking:'#parking',
-        mapSrc:'#mapFrame', mapLinkText:'#mapLink', mapLinkHref:'#mapLink',
-        altFormText:'#altFormLink', altFormHref:'#altFormLink',
+        brandLine1:'.brand__name .line1',
+        brandLine2:'.brand__name .line2',
+        heroTitle:'#heroTitle',
+        heroLead:'#heroLead',
+        heroImage:'#heroImage',
+        hours:['#hours','#hoursChip'],
+        address:'#addr',
+        parking:'#parking',
+        mapSrc:'#mapFrame',
+        mapLinkText:'#mapLink',
+        mapLinkHref:'#mapLink',
+        altFormText:'#altFormLink',
+        altFormHref:'#altFormLink',
         footerBannerText:'#footerBannerText',
       };
+
       for(const k in bindMap){
         const sel = bindMap[k];
         const targets = Array.isArray(sel)? sel.flatMap(s=> $$(s)) : $$(sel);
+
         targets.forEach(el=>{
           if(!el) return;
-          if(k.toLowerCase().includes('href')) el.setAttribute('href', d[k] || '#');
-          else if(k==='mapSrc' && el.tagName==='IFRAME') el.src = d[k] || '';
-          else if(k.toLowerCase().includes('image') || el.tagName==='IMG') el.setAttribute('src', d[k] || '');
-          else el.textContent = d[k] ?? '';
+
+          if(k.toLowerCase().includes('href')){
+            el.setAttribute('href', d[k] || '#');
+            return;
+          }
+
+          if(k==='mapSrc' && el.tagName==='IFRAME'){
+            el.src = d[k] || DEFAULT_DATA.mapSrc;
+            return;
+          }
+
+          if(k.toLowerCase().includes('image') || el.tagName==='IMG'){
+            el.setAttribute('src', d[k] || DEFAULT_DATA.heroImage);
+            return;
+          }
+
+          el.textContent = d[k] ?? '';
         });
       }
 
@@ -470,12 +487,12 @@
         const badge=item.badge?`<span class="badge">${item.badge}</span>`:'';
         const card=document.createElement('article'); card.className='card'; card.style.width='280px';
         card.innerHTML=`<img src="${item.image||''}" alt=""><div class="pad">
-            <div class="actions" style="justify-content:space-between;"><h3 style="margin:0;">${item.title||''}</h3>${badge}</div>
-            <p class="muted">${item.desc||''}</p><strong>${item.price||''}</strong></div>`;
+          <div class="actions" style="justify-content:space-between;"><h3 style="margin:0;">${item.title||''}</h3>${badge}</div>
+          <p class="muted">${item.desc||''}</p><strong>${item.price||''}</strong></div>`;
         menuWrap.appendChild(card);
       });
 
-      // news：日付降順にソート → 上3件＋残り（最大5件）
+      // news: sort desc, show max 5 (3 + more)
       const sortedNews = (d.news||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,5);
       const first3 = sortedNews.slice(0,3);
       const rest = sortedNews.slice(3);
@@ -484,8 +501,7 @@
       const moreWrap = $('#newsListMore'); moreWrap.innerHTML='';
       rest.forEach(n=> moreWrap.appendChild(newsCard(n)));
 
-      // reviews：date補完→降順→最大30保持、表示は5件＋残り
-      ensureReviewDates(d);
+      // reviews: sort desc, show 5 + more (max 30)
       const sortedReviews = (d.reviews||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,30);
       const rvFirst5 = sortedReviews.slice(0,5);
       const rvRest = sortedReviews.slice(5);
@@ -494,19 +510,12 @@
       const revMore = $('#reviewsListMore'); revMore.innerHTML='';
       rvRest.forEach(rv=> revMore.appendChild(reviewCard(rv)));
 
-      // sectionsMuted（既存DOMを変えずにクラス切替）
+      // sectionsMuted
       applySectionMuted(d.sectionsMuted || DEFAULT_DATA.sectionsMuted);
     }
 
     function applySectionMuted(m){
-      const map = {
-        reasons: '#reasons',
-        menu: '#menu',
-        news: '#news',
-        reviews: '#reviews',
-        info: '#info',
-        reserve: '#reserve'
-      };
+      const map = { reasons:'#reasons', menu:'#menu', news:'#news', reviews:'#reviews', info:'#info', reserve:'#reserve' };
       Object.keys(map).forEach(k=>{
         const el = document.querySelector(map[k]);
         if(!el) return;
@@ -521,87 +530,66 @@
     }
 
     function reviewCard(rv){
-      const stars='★★★★★'.slice(0, Math.max(0, Math.min(5, rv.rating||0)));
+      const stars='★★★★★'.slice(0, Math.max(0, Math.min(5, Number(rv.rating||0))));
       const card=document.createElement('article'); card.className='card';
       card.innerHTML=`<div class="pad"><strong class="stars" aria-label="評価">${stars}</strong><p class="clamp-3">${rv.text||''}</p><small class="muted">— ${rv.name||'匿名'} ・ ${rv.date||''}</small></div>`;
       return card;
     }
 
-    function ensureReviewDates(d){
-      let changed=false;
-      (d.reviews||[]).forEach((r,i)=>{
-        if(!r.date){
-          const dt = new Date(); dt.setDate(dt.getDate() - i);
-          r.date = dt.toISOString().slice(0,10);
-          changed=true;
-        }
-      });
-      if(changed){
-        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }catch(e){}
-      }
-    }
-
-    /* ------------ JSONP load（Public API）【修正版】 ------------ */
+    /* ------------ JSONP load（data/json 両対応） ------------ */
     function loadFromPublicApiJSONP(){
       return new Promise((resolve)=>{
         if(!PUBLIC_API_URL){ resolve({ok:false, reason:'no_url'}); return; }
 
-        // ★ 固定コールバック（cb_site_xxx未定義を根絶）
-        const CB = "__SITE_JSONP_CB__";
-        let settled = false;
+        const cb = "cb_site_" + Math.random().toString(36).slice(2);
+        let done = false;
 
-        const cleanup = (s)=>{
-          try{ if(s) s.remove(); }catch(e){}
-        };
-
-        const finish = (obj)=>{
-          if(settled) return;
-          settled = true;
-          resolve(obj);
-        };
-
-        window[CB] = (res)=>{
+        window[cb] = (res)=>{
+          done = true;
           try{
-            const payloadText = res && (res.json ?? res.data);
+            const payloadText = res && (res.data ?? res.json);
             if(res && res.ok && payloadText){
-              const remoteObj = safeJsonParse(payloadText);
+              const remoteObj = safeParse(payloadText);
               if(remoteObj){
-                saveCache(remoteObj);
-                finish({ok:true, data:remoteObj, raw:res});
+                resolve({ok:true, data:remoteObj, meta:res.meta || null});
                 return;
               }
             }
           }catch(e){}
-          finish({ok:false, raw:res});
+          resolve({ok:false, raw:res});
         };
 
         const s = document.createElement("script");
-        s.async = true;
-        s.src =
-          `${PUBLIC_API_URL}?path=site&key=${encodeURIComponent(SITE_KEY)}&callback=${encodeURIComponent(CB)}&_=${Date.now()}`;
-
-        s.onerror = ()=>{ cleanup(s); finish({ok:false, reason:'script_error'}); };
-
+        s.src = `${PUBLIC_API_URL}?path=site&key=${encodeURIComponent(SITE_KEY)}&callback=${encodeURIComponent(cb)}&v=${Date.now()}`;
+        s.onerror = ()=> resolve({ok:false, reason:'script_error'});
         document.head.appendChild(s);
 
-        // ★ callbackが返らない場合の保険（ただし二重resolve防止済み）
-        setTimeout(()=>{ cleanup(s); finish({ok:false, reason:'timeout'}); }, 2500);
+        // callback未実行保険
+        setTimeout(()=>{ if(!done) resolve({ok:false, reason:'timeout'}); }, 1800);
+
+        // cleanup
+        setTimeout(()=>{
+          try{ delete window[cb]; }catch(e){ window[cb]=null; }
+          try{ s.remove(); }catch(e){}
+        }, 2500);
       });
     }
 
-    /* ------------ Forms: grids（予約フォームのレイアウト） ------------ */
-    const style = document.createElement('style');
-    style.textContent = `
-      .form-grid{ display:grid; gap:16px; grid-template-columns:1fr 2fr; }
-      .form-grid .col-2{ grid-column: span 2; }
-      .form-grid-3{ display:grid; gap:16px; grid-template-columns:1fr 1fr 1fr; }
-      @media (max-width: 900px){
-        .form-grid{ grid-template-columns:1fr; gap:12px; }
-        .form-grid .col-2{ grid-column:auto; }
-        .form-grid-3{ grid-template-columns:1fr; gap:12px; }
-      }
-    `;
-    document.head.append(style);
+    /* ------------ Forms: grids（予約フォーム） ------------ */
+    (function injectFormGridCss(){
+      const style = document.createElement('style');
+      style.textContent = `
+        .form-grid{ display:grid; gap:16px; grid-template-columns:1fr 2fr; }
+        .form-grid .col-2{ grid-column: span 2; }
+        .form-grid-3{ display:grid; gap:16px; grid-template-columns:1fr 1fr 1fr; }
+        @media (max-width: 900px){
+          .form-grid{ grid-template-columns:1fr; gap:12px; }
+          .form-grid .col-2{ grid-column:auto; }
+          .form-grid-3{ grid-template-columns:1fr; gap:12px; }
+        }
+      `;
+      document.head.append(style);
+    })();
 
     /* ------------ Anchor offset & smooth scroll ------------ */
     function setHeaderHeightVar(){
@@ -610,7 +598,6 @@
     }
     setHeaderHeightVar();
     window.addEventListener('resize', setHeaderHeightVar);
-
     $H('siteNav')?.addEventListener('click', (e)=>{
       const a = e.target.closest('a[href^="#"]'); if(!a) return;
       const id = a.getAttribute('href'); const el = document.querySelector(id); if(!el) return;
@@ -620,43 +607,38 @@
       window.scrollTo({ top:y, behavior:'smooth' });
     });
 
-    /* ------------ Init（★ awaitエラー解消：async化） ------------ */
+    /* ------------ Init（最終安定版） ------------ */
     (async function init(){
-      // 1) まずは localStorage（従来）→なければDEFAULT
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const storedObj = stored ? safeJsonParse(stored) : null;
+      // 0) まずは localStorage（旧）を読む
+      const storedObj = loadLS(STORAGE_KEY);
 
-      window.__SITE_DATA__ = storedObj
-        ? { ...DEFAULT_DATA, ...storedObj }
-        : safeClone(DEFAULT_DATA);
+      // 1) 画面は即表示（DEFAULT + localStorage）
+      let initial = normalizeForView({ ...(storedObj||{}) });
+      applyData(initial);
 
-      ensureReviewDates(window.__SITE_DATA__);
-      applyData(window.__SITE_DATA__);
-
-      // 2) GAS（JSONP）を試す
+      // 2) GAS を試す
       const remote = await loadFromPublicApiJSONP();
 
       if(remote && remote.ok && remote.data){
-        // GAS成功 → 上書き + 保存
-        window.__SITE_DATA__ = { ...DEFAULT_DATA, ...remote.data };
-        ensureReviewDates(window.__SITE_DATA__);
-        applyData(window.__SITE_DATA__);
-        saveLocal();
-      }else{
-        // 3) GAS失敗 → キャッシュがあれば使う（保険）
-        const cached = loadCache();
+        const view = normalizeForView(remote.data);
+        applyData(view);
+
+        // 保存（旧キー互換 + キャッシュ）
+        saveLS(STORAGE_KEY, remote.data);
+        saveLS(LS_CACHE_KEY, remote.data);
+      } else {
+        // 3) GAS失敗 → キャッシュ（保険）
+        const cached = loadLS(LS_CACHE_KEY);
         if(cached){
-          window.__SITE_DATA__ = { ...DEFAULT_DATA, ...cached };
-          ensureReviewDates(window.__SITE_DATA__);
-          applyData(window.__SITE_DATA__);
-          saveLocal();
+          const view = normalizeForView(cached);
+          applyData(view);
+          saveLS(STORAGE_KEY, cached);
         }
       }
 
       // お知らせトグル
       const newsToggle = $H('newsToggle'), newsMore = $H('newsListMore'); let newsOpen = false;
-      newsToggle?.addEventListener('click', (e)=>{
-        e.preventDefault(); newsOpen = !newsOpen;
+      newsToggle?.addEventListener('click', (e)=>{ e.preventDefault(); newsOpen = !newsOpen;
         newsMore.style.display = newsOpen ? 'grid' : 'none';
         newsToggle.setAttribute('aria-expanded', String(newsOpen));
         newsToggle.textContent = newsOpen ? '過去のお知らせを閉じる' : '過去のお知らせも見る';
@@ -664,8 +646,7 @@
 
       // 口コミトグル
       const rvToggle = $H('reviewsToggle'), rvMore = $H('reviewsListMore'); let rvOpen = false;
-      rvToggle?.addEventListener('click', (e)=>{
-        e.preventDefault(); rvOpen = !rvOpen;
+      rvToggle?.addEventListener('click', (e)=>{ e.preventDefault(); rvOpen = !rvOpen;
         rvMore.style.display = rvOpen ? 'grid' : 'none';
         rvToggle.setAttribute('aria-expanded', String(rvOpen));
         rvToggle.textContent = rvOpen ? '過去の口コミを閉じる' : '過去の口コミも見る';
@@ -678,9 +659,7 @@
       });
     })();
 
-    /* ================================
-       ★ 追記：Liquid Glass 自動有効化（header/footerのみ）
-       ================================ */
+    /* ------------ Liquid Glass Auto ------------ */
     (function(){
       try{
         var supports = window.CSS && (CSS.supports('backdrop-filter','blur(1px)') || CSS.supports('-webkit-backdrop-filter','blur(1px)'));
@@ -689,7 +668,7 @@
     })();
   </script>
 
-  <!-- 改訂No.003：ポイント/クーポン モーダル（この部分は別途運用） -->
+  <!-- ポイント/クーポン（この部分は別途運用） -->
   <style>
     .loy-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.38); display:none; z-index:80; }
     .loy-modal{ position:fixed; inset:auto 0 0 0; margin:auto; width:min(560px, calc(100% - 24px));
@@ -706,7 +685,6 @@
     .loy-btn.primary{ background:var(--brand); color:#fff; border-color:transparent; }
     .loy-progress{ height:10px; background:#f2f5f9; border-radius:999px; overflow:hidden; }
     .loy-progress > span{ display:block; height:100%; width:0%; background:var(--brand); }
-    .loy-code{ font-family:ui-monospace, Menlo, Consolas, monospace; padding:.5rem .6rem; border:1px dashed #e8eaef; border-radius:10px; }
   </style>
 
   <div class="loy-backdrop" id="loyBackdrop"></div>
@@ -749,20 +727,25 @@
   </div>
 
   <script>
-    /* 改訂No.003：ポイントMVP 連携（この部分は別途運用） */
-    const API_BASE = '<<YOUR_GAS_EXEC_URL>>'; // 例: https://script.google.com/macros/s/xxx/exec
-    const LS_ID = 'loy_member_id';
+    // ポイント部分は別途運用（ここはモック）
     const $q = (s, r=document)=>r.querySelector(s);
 
     $q('#openLoyalty')?.addEventListener('click', openLoy);
     $q('#loyClose')?.addEventListener('click', closeLoy);
     $q('#loyBackdrop')?.addEventListener('click', closeLoy);
-    function openLoy(){ $q('#loyBackdrop').style.display='block'; $q('#loyModal').style.display='block'; initLoy(); }
-    function closeLoy(){ $q('#loyBackdrop').style.display='none'; $q('#loyModal').style.display='none'; }
+
+    function openLoy(){
+      $q('#loyBackdrop').style.display='block';
+      $q('#loyModal').style.display='block';
+    }
+    function closeLoy(){
+      $q('#loyBackdrop').style.display='none';
+      $q('#loyModal').style.display='none';
+    }
 
     const tabs = [['tabPoint','panePoint'],['tabCoupon','paneCoupon'],['tabHowto','paneHowto']];
     tabs.forEach(([t,p])=>{
-      $q('#'+t).addEventListener('click', ()=>{
+      $q('#'+t)?.addEventListener('click', ()=>{
         tabs.forEach(([tt,pp])=>{
           $q('#'+tt).setAttribute('aria-selected', tt===t ? 'true' : 'false');
           $q('#'+pp).classList.toggle('active', pp===p);
@@ -770,21 +753,8 @@
       });
     });
 
-    async function initLoy(){
-      const id = localStorage.getItem(LS_ID) || '';
-      $q('#loyId').value = id;
-      const urlNonce = new URLSearchParams(location.search).get('nonce');
-      $q('#loyNonce').value = urlNonce || '';
-      if(id){ /* refreshMe(id); */ }
-    }
-
-    $q('#btnRegister')?.addEventListener('click', async ()=>{
-      alert('このポイント機能は別途運用です（LPの本件DB反映とは別）。');
-    });
-
-    $q('#btnCheckin')?.addEventListener('click', async ()=>{
-      alert('このポイント機能は別途運用です（LPの本件DB反映とは別）。');
-    });
+    $q('#btnRegister')?.addEventListener('click', ()=> alert('このポイント機能は別途運用です。'));
+    $q('#btnCheckin')?.addEventListener('click', ()=> alert('このポイント機能は別途運用です。'));
   </script>
 </body>
 </html>
