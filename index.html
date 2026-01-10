@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- Revision: 最終安定版（運用分離 / Public API連携 / 画像フォールバック強化） -->
+  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coffee & Restaurant – マイルド</title>
@@ -16,6 +16,12 @@
       --badge-bg: color-mix(in srgb, var(--brand) 10%, #eef2f7);
       --badge-fg: color-mix(in srgb, var(--brand) 70%, #26323f);
       --header-h: 60px;
+
+      --glass-bg: color-mix(in srgb, #ffffff 14%, transparent);
+      --glass-stroke: color-mix(in srgb, #ffffff 38%, transparent);
+      --glass-blur: 16px;
+      --glass-saturate: 160%;
+      --glass-shadow: 0 10px 30px rgba(10,12,16,.18);
     }
     *,*::before,*::after{ box-sizing:border-box; }
     html{ scroll-behavior:smooth; }
@@ -30,7 +36,6 @@
     p{ margin:.6em 0; }
     small,.muted{ color:var(--text-dim); }
 
-    /* ===== Header ===== */
     header.site-header{ position:sticky; top:0; z-index:50; background:#fff;
       border-bottom:1px solid var(--border); backdrop-filter:blur(10px); }
     .nav{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 0; }
@@ -49,23 +54,21 @@
       .nav-right .btn-primary{ padding:.5rem .8rem; font-size:.95rem; }
     }
 
-    /* ===== Hero ===== */
     .hero{ background:linear-gradient(180deg, var(--bg), #14161a); color:#fff; padding:clamp(28px,6vw,80px) 0; }
     .hero .wrap{ display:grid; gap:20px; align-items:center; grid-template-columns:1.2fr .8fr; }
     @media (max-width:900px){ .hero .wrap{ grid-template-columns:1fr; } }
     .chip{ display:inline-flex; gap:.5em; align-items:center; font-size:.9rem; padding:.4rem .7rem; border-radius:999px; border:1px solid rgba(255,255,255,.16); color:#e5e7eb; background:rgba(255,255,255,.06); }
-    /* ★ Hero画像のアスペクト比を固定（4:3） */
     .hero .media-rounded{ aspect-ratio: 4 / 3; max-width: 720px; margin-left:auto; }
     .hero .media-rounded img{ width:100%; height:100%; object-fit:cover; border-radius:clamp(12px,2vw,20px); }
 
-    /* ===== Sections & Cards ===== */
     .section{ padding:clamp(28px,5vw,64px) 0; }
     .section.is-muted{ background:var(--muted); border-block:1px solid var(--border); }
     .section-title{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .hint-inline{
       display:inline-flex; align-items:center; gap:.35em; font-size:.9rem; font-weight:700;
       padding:.22rem .55rem; border-radius:999px;
-      background: var(--badge-bg); color: var(--badge-fg); border:1px solid color-mix(in srgb, var(--brand) 18%, var(--border));
+      background: var(--badge-bg); color: var(--badge-fg);
+      border:1px solid color-mix(in srgb, var(--brand) 18%, var(--border));
     }
     .grid-3{ display:grid; gap:16px; grid-template-columns:repeat(3,1fr); }
     @media (max-width:900px){ .grid-3{ grid-template-columns:1fr; } }
@@ -78,7 +81,6 @@
     .badge{ display:inline-flex; align-items:center; gap:.35em; padding:.28rem .6rem; border-radius:999px; font-size:.85rem;
       background:linear-gradient(180deg,#fff,#f1f5f9); border:1px solid var(--border); color:#2e3a49; }
 
-    /* ===== Buttons & Inputs ===== */
     .actions{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .btn{ display:inline-flex; align-items:center; gap:.6em; font-weight:700; padding:.9rem 1.2rem; border-radius:999px; box-shadow:var(--shadow);
       transition:transform var(--speed) ease, box-shadow var(--speed) ease, background var(--speed) ease; border:1px solid transparent; }
@@ -96,16 +98,13 @@
     }
     .input.email{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size:1.05rem; letter-spacing:.02em; padding:1rem 1.1rem; }
 
-    /* ===== Horizontal Snap ===== */
     .snap-row{ display:flex; gap:16px; overflow:auto; scroll-snap-type:x mandatory; padding-bottom:8px; }
     .snap-row > *{ flex:0 0 auto; width:280px; scroll-snap-align:start; }
 
-    /* ===== Footer banner ===== */
     footer.sticky-banner{ position: sticky; bottom:0; z-index:40; padding:12px 0;
       background: color-mix(in srgb, #fff 90%, transparent); border-top:1px solid var(--border); backdrop-filter: blur(8px); }
     .banner-text{ display:flex; align-items:center; justify-content:center; text-align:center; gap:.6rem; font-weight:700; }
 
-    /* ===== Mobile compact for Reserve & Reviews ===== */
     @media (max-width:900px){
       #reserveForm.card{ padding:12px !important; }
       .form-grid{ gap:12px !important; }
@@ -125,22 +124,18 @@
       }
     }
 
-    /* ===== Anchor offset（見出しがヘッダーに隠れない） ===== */
     .section, [id]{ scroll-margin-top: calc(var(--header-h) + 10px); }
-
-    /* ★ レビュー星を金色に */
     .stars{ color:#d4af37; }
 
-    /* ===== Liquid Glass（header/footerのみ・最小差分） ===== */
-    :root{
-      --glass-bg: color-mix(in srgb, #ffffff 14%, transparent);
-      --glass-stroke: color-mix(in srgb, #ffffff 38%, transparent);
-      --glass-blur: 16px;
-      --glass-saturate: 160%;
-      --glass-shadow: 0 10px 30px rgba(10,12,16,.18);
-    }
     .theme-liquid header.site-header,
     .theme-liquid footer.sticky-banner{
+      background: var(--glass-bg);
+      border-color: var(--glass-stroke);
+      backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
+      -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
+      box-shadow: var(--glass-shadow);
+    }
+    .theme-liquid .card{
       background: var(--glass-bg);
       border-color: var(--glass-stroke);
       backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
@@ -150,23 +145,12 @@
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .theme-liquid header.site-header,
       .theme-liquid footer.sticky-banner{ background: inherit; }
-    }
-
-    .theme-liquid .card{
-      background: var(--glass-bg);
-      border-color: var(--glass-stroke);
-      backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
-      -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
-      box-shadow: var(--glass-shadow);
-    }
-    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .theme-liquid .card{ background:#fff; }
     }
   </style>
 </head>
 
 <body>
-  <!-- Header -->
   <header class="site-header" id="siteHeader">
     <div class="container nav">
       <div class="brand" id="brandName">
@@ -186,7 +170,6 @@
     </div>
   </header>
 
-  <!-- Hero -->
   <section class="hero" id="hero">
     <div class="container wrap">
       <div>
@@ -195,12 +178,14 @@
         <p id="heroLead" data-bind="heroLead">焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。</p>
       </div>
       <div class="media-rounded">
-        <img id="heroImage" data-bind="heroImage" src="" alt="店内の雰囲気">
+        <!-- ★プロトタイプ必ず表示：初期srcもDEFAULTで埋める -->
+        <img id="heroImage" data-bind="heroImage"
+             src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop"
+             alt="店内の雰囲気">
       </div>
     </div>
   </section>
 
-  <!-- Reasons -->
   <section class="section is-muted" id="reasons">
     <div class="container">
       <h2 class="section-title">選ばれる理由</h2>
@@ -208,7 +193,6 @@
     </div>
   </section>
 
-  <!-- Menu -->
   <section class="section" id="menu">
     <div class="container">
       <div class="section-title">
@@ -219,7 +203,6 @@
     </div>
   </section>
 
-  <!-- News -->
   <section class="section is-muted" id="news">
     <div class="container">
       <div class="section-title">
@@ -231,7 +214,6 @@
     </div>
   </section>
 
-  <!-- Reviews -->
   <section class="section" id="reviews">
     <div class="container">
       <div class="section-title">
@@ -243,7 +225,6 @@
     </div>
   </section>
 
-  <!-- Info -->
   <section class="section is-muted" id="info">
     <div class="container">
       <h2 class="section-title">店舗情報</h2>
@@ -265,19 +246,18 @@
     </div>
   </section>
 
-  <!-- Access -->
   <section class="section" id="access">
     <div class="container">
       <h2 class="section-title">アクセス</h2>
       <div class="card">
+        <!-- ★初期srcもDEFAULTで埋める -->
         <iframe id="mapFrame" data-bind="mapSrc"
-          src=""
+          src="https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik"
           style="width:100%; height:380px; border:0;"></iframe>
       </div>
     </div>
   </section>
 
-  <!-- Reserve -->
   <section class="section is-muted" id="reserve">
     <div class="container">
       <h2 class="section-title">ご予約・お問い合わせ</h2>
@@ -300,7 +280,6 @@
     </div>
   </section>
 
-  <!-- Footer banner -->
   <footer class="sticky-banner">
     <div class="banner-text" style="gap:.8rem; flex-wrap:wrap;">
       <span id="footerBannerText" data-bind="footerBannerText">HP開設キャンペーン企画実施中</span>
@@ -310,19 +289,16 @@
 
   <script>
     /* ==========================================================
-       Public API（JSONP）最終安定版
-       - data/json の両対応
-       - 画像は「空文字ならDEFAULTへフォールバック」
-       - 優先順位: GAS → Cache → localStorage → DEFAULT
+       Public API（JSONP）最終安定版：プロトタイプ強制表示
+       優先順位: GAS → Cache → localStorage → DEFAULT
+       表示用は normalizeForView() が DEFAULT を必ず補完
        ========================================================== */
 
     const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycby5FA9NjNhBY8W3m4xtxB4nNR23K71iE18mUId_xHf-vJho3Nf1z7QgpABEdbdU0IezGQ/exec";
     const SITE_KEY = "model-a";
+    const STORAGE_KEY = "cafeSiteData_v21";
+    const LS_CACHE_KEY = "site_current_cache_v1";
 
-    const STORAGE_KEY = "cafeSiteData_v21";       // 旧互換（残す）
-    const LS_CACHE_KEY = "site_current_cache_v1"; // GAS成功キャッシュ
-
-    /* ------------ Default Data（プロトタイプ用） ------------ */
     const DEFAULT_DATA = {
       brandColor:"#16a34a",
       brandLine1:"Coffee & Restaurant",
@@ -361,116 +337,123 @@
       ]
     };
 
-    /* ------------ Utils ------------ */
     const $ = (s, r=document)=>r.querySelector(s);
     const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
     const $H = (id)=>document.getElementById(id);
 
-    function safeParse(str){
-      try{ return JSON.parse(str); }catch(e){ return null; }
-    }
-    function saveLS(key, obj){
-      try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
-    }
-    function loadLS(key){
-      try{
-        const t = localStorage.getItem(key);
-        return t ? safeParse(t) : null;
-      }catch(e){ return null; }
-    }
+    function safeParse(str){ try{ return JSON.parse(str); }catch(e){ return null; } }
+    function saveLS(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
+    function loadLS(key){ try{ const t=localStorage.getItem(key); return t? safeParse(t):null; }catch(e){ return null; } }
 
-    // 画像など「空文字で保存された値」は DEFAULT にフォールバックしたい
     function emptyToDefault(val, def){
       if(val === undefined || val === null) return def;
       if(typeof val === "string" && val.trim() === "") return def;
       return val;
     }
 
-    // 適用前に「空画像」をDEFAULTへ戻す（表示安定）
-    function normalizeForView(d){
-      const out = { ...DEFAULT_DATA, ...(d||{}) };
+    // ★プロトタイプ必ず表示：空配列や空文字は DEFAULT に戻す（View専用）
+    function normalizeForView(src){
+      const d = (src && typeof src === 'object') ? src : {};
+      const out = { ...DEFAULT_DATA, ...d };
 
-      // 画像・mapSrcを空ならデフォルトへ
       out.heroImage = emptyToDefault(out.heroImage, DEFAULT_DATA.heroImage);
-      out.mapSrc    = emptyToDefault(out.mapSrc, DEFAULT_DATA.mapSrc);
+      out.mapSrc    = emptyToDefault(out.mapSrc,    DEFAULT_DATA.mapSrc);
 
-      // reasons/menu の image も空ならデフォルトの該当があれば使う（なければ空のまま）
-      out.reasons = Array.isArray(out.reasons) ? out.reasons : DEFAULT_DATA.reasons.slice();
-      out.reasons = out.reasons.slice(0,3).map((it,i)=>{
+      // sectionsMuted は merge
+      out.sectionsMuted = { ...(DEFAULT_DATA.sectionsMuted||{}), ...(d.sectionsMuted||{}) };
+
+      // reasons 3枠固定（title/textも空ならDEFAULTへ）
+      const rSrc = Array.isArray(d.reasons) ? d.reasons : null;
+      out.reasons = [0,1,2].map(i=>{
         const base = DEFAULT_DATA.reasons[i] || {};
+        const r = (rSrc && rSrc[i]) ? rSrc[i] : {};
         return {
-          title: it?.title ?? "",
-          text:  it?.text  ?? "",
-          image: emptyToDefault(it?.image, base.image || "")
+          title: emptyToDefault(r.title, base.title || ""),
+          text : emptyToDefault(r.text,  base.text  || ""),
+          image: emptyToDefault(r.image, base.image || "")
         };
       });
 
-      out.menu = Array.isArray(out.menu) ? out.menu : DEFAULT_DATA.menu.slice();
+      // menu/news/reviews：空配列は DEFAULT へ（プロトタイプ固定）
+      out.menu = (Array.isArray(d.menu) && d.menu.length) ? d.menu : (DEFAULT_DATA.menu||[]);
       out.menu = out.menu.map((it,i)=>{
-        const base = DEFAULT_DATA.menu[i] || {};
+        const base = (DEFAULT_DATA.menu && DEFAULT_DATA.menu[i]) ? DEFAULT_DATA.menu[i] : {};
         return {
-          title: it?.title ?? "",
-          desc:  it?.desc  ?? "",
-          price: it?.price ?? "",
-          badge: it?.badge ?? "",
+          title: emptyToDefault(it?.title, base.title || ""),
+          desc : emptyToDefault(it?.desc,  base.desc  || ""),
+          price: emptyToDefault(it?.price, base.price || ""),
+          badge: emptyToDefault(it?.badge, base.badge || ""),
           image: emptyToDefault(it?.image, base.image || "")
         };
       });
 
-      out.news = Array.isArray(out.news) ? out.news : [];
-      out.reviews = Array.isArray(out.reviews) ? out.reviews : [];
-
-      out.sectionsMuted = out.sectionsMuted || DEFAULT_DATA.sectionsMuted;
+      out.news = (Array.isArray(d.news) && d.news.length) ? d.news : (DEFAULT_DATA.news||[]);
+      out.reviews = (Array.isArray(d.reviews) && d.reviews.length) ? d.reviews : (DEFAULT_DATA.reviews||[]);
 
       return out;
     }
 
-    /* ------------ Render ------------ */
+    function applySectionMuted(m){
+      const map = { reasons:'#reasons', menu:'#menu', news:'#news', reviews:'#reviews', info:'#info', reserve:'#reserve' };
+      Object.keys(map).forEach(k=>{
+        const el = document.querySelector(map[k]);
+        if(!el) return;
+        el.classList.toggle('is-muted', !!m[k]);
+      });
+    }
+
+    function newsCard(n){
+      const card=document.createElement('article'); card.className='card';
+      card.innerHTML=`<div class="pad"><small class="muted">${n.date||''}</small><h3>${n.title||''}</h3><p>${n.text||''}</p></div>`;
+      return card;
+    }
+    function reviewCard(rv){
+      const stars='★★★★★'.slice(0, Math.max(0, Math.min(5, Number(rv.rating||0))));
+      const card=document.createElement('article'); card.className='card';
+      card.innerHTML=`<div class="pad"><strong class="stars" aria-label="評価">${stars}</strong><p class="clamp-3">${rv.text||''}</p><small class="muted">— ${rv.name||'匿名'} ・ ${rv.date||''}</small></div>`;
+      return card;
+    }
+
     function applyData(d){
       document.documentElement.style.setProperty('--brand', d.brandColor || DEFAULT_DATA.brandColor);
 
-      // bind
+      // text/href bindings
       const bindMap = {
         brandLine1:'.brand__name .line1',
         brandLine2:'.brand__name .line2',
         heroTitle:'#heroTitle',
         heroLead:'#heroLead',
-        heroImage:'#heroImage',
         hours:['#hours','#hoursChip'],
         address:'#addr',
         parking:'#parking',
-        mapSrc:'#mapFrame',
         mapLinkText:'#mapLink',
-        mapLinkHref:'#mapLink',
-        altFormText:'#altFormLink',
-        altFormHref:'#altFormLink',
         footerBannerText:'#footerBannerText',
       };
 
       for(const k in bindMap){
         const sel = bindMap[k];
         const targets = Array.isArray(sel)? sel.flatMap(s=> $$(s)) : $$(sel);
-
         targets.forEach(el=>{
           if(!el) return;
-
-          if(k.toLowerCase().includes('href')){
-            el.setAttribute('href', d[k] || '#');
-            return;
-          }
-
-          if(k==='mapSrc' && el.tagName==='IFRAME'){
-            el.src = d[k] || DEFAULT_DATA.mapSrc;
-            return;
-          }
-
-          if(k.toLowerCase().includes('image') || el.tagName==='IMG'){
-            el.setAttribute('src', d[k] || DEFAULT_DATA.heroImage);
-            return;
-          }
-
           el.textContent = d[k] ?? '';
         });
+      }
+
+      // hero image (専用)
+      const heroImg = $H('heroImage');
+      if(heroImg) heroImg.src = d.heroImage || DEFAULT_DATA.heroImage;
+
+      // map
+      const mapFrame = $H('mapFrame');
+      if(mapFrame) mapFrame.src = d.mapSrc || DEFAULT_DATA.mapSrc;
+
+      // href
+      const mapLink = $H('mapLink');
+      if(mapLink) mapLink.href = d.mapLinkHref || DEFAULT_DATA.mapLinkHref || '#access';
+      const altForm = $H('altFormLink');
+      if(altForm){
+        altForm.textContent = d.altFormText || DEFAULT_DATA.altFormText;
+        altForm.href = d.altFormHref || DEFAULT_DATA.altFormHref || '#';
       }
 
       // reasons
@@ -492,7 +475,7 @@
         menuWrap.appendChild(card);
       });
 
-      // news: sort desc, show max 5 (3 + more)
+      // news
       const sortedNews = (d.news||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,5);
       const first3 = sortedNews.slice(0,3);
       const rest = sortedNews.slice(3);
@@ -501,7 +484,7 @@
       const moreWrap = $('#newsListMore'); moreWrap.innerHTML='';
       rest.forEach(n=> moreWrap.appendChild(newsCard(n)));
 
-      // reviews: sort desc, show 5 + more (max 30)
+      // reviews
       const sortedReviews = (d.reviews||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,30);
       const rvFirst5 = sortedReviews.slice(0,5);
       const rvRest = sortedReviews.slice(5);
@@ -510,33 +493,9 @@
       const revMore = $('#reviewsListMore'); revMore.innerHTML='';
       rvRest.forEach(rv=> revMore.appendChild(reviewCard(rv)));
 
-      // sectionsMuted
       applySectionMuted(d.sectionsMuted || DEFAULT_DATA.sectionsMuted);
     }
 
-    function applySectionMuted(m){
-      const map = { reasons:'#reasons', menu:'#menu', news:'#news', reviews:'#reviews', info:'#info', reserve:'#reserve' };
-      Object.keys(map).forEach(k=>{
-        const el = document.querySelector(map[k]);
-        if(!el) return;
-        el.classList.toggle('is-muted', !!m[k]);
-      });
-    }
-
-    function newsCard(n){
-      const card=document.createElement('article'); card.className='card';
-      card.innerHTML=`<div class="pad"><small class="muted">${n.date||''}</small><h3>${n.title||''}</h3><p>${n.text||''}</p></div>`;
-      return card;
-    }
-
-    function reviewCard(rv){
-      const stars='★★★★★'.slice(0, Math.max(0, Math.min(5, Number(rv.rating||0))));
-      const card=document.createElement('article'); card.className='card';
-      card.innerHTML=`<div class="pad"><strong class="stars" aria-label="評価">${stars}</strong><p class="clamp-3">${rv.text||''}</p><small class="muted">— ${rv.name||'匿名'} ・ ${rv.date||''}</small></div>`;
-      return card;
-    }
-
-    /* ------------ JSONP load（data/json 両対応） ------------ */
     function loadFromPublicApiJSONP(){
       return new Promise((resolve)=>{
         if(!PUBLIC_API_URL){ resolve({ok:false, reason:'no_url'}); return; }
@@ -550,10 +509,7 @@
             const payloadText = res && (res.data ?? res.json);
             if(res && res.ok && payloadText){
               const remoteObj = safeParse(payloadText);
-              if(remoteObj){
-                resolve({ok:true, data:remoteObj, meta:res.meta || null});
-                return;
-              }
+              if(remoteObj){ resolve({ok:true, data:remoteObj, meta:res.meta||null}); return; }
             }
           }catch(e){}
           resolve({ok:false, raw:res});
@@ -564,18 +520,17 @@
         s.onerror = ()=> resolve({ok:false, reason:'script_error'});
         document.head.appendChild(s);
 
-        // callback未実行保険
         setTimeout(()=>{ if(!done) resolve({ok:false, reason:'timeout'}); }, 1800);
 
-        // cleanup
         setTimeout(()=>{
+          // cleanup（callbackが呼ばれてから消えるように少し遅め）
           try{ delete window[cb]; }catch(e){ window[cb]=null; }
           try{ s.remove(); }catch(e){}
-        }, 2500);
+        }, 3500);
       });
     }
 
-    /* ------------ Forms: grids（予約フォーム） ------------ */
+    // form grid css（あなたの元構成のまま）
     (function injectFormGridCss(){
       const style = document.createElement('style');
       style.textContent = `
@@ -591,84 +546,79 @@
       document.head.append(style);
     })();
 
-    /* ------------ Anchor offset & smooth scroll ------------ */
     function setHeaderHeightVar(){
       const h = $H('siteHeader')?.offsetHeight || 60;
       document.documentElement.style.setProperty('--header-h', h + 'px');
     }
-    setHeaderHeightVar();
-    window.addEventListener('resize', setHeaderHeightVar);
-    $H('siteNav')?.addEventListener('click', (e)=>{
-      const a = e.target.closest('a[href^="#"]'); if(!a) return;
-      const id = a.getAttribute('href'); const el = document.querySelector(id); if(!el) return;
-      e.preventDefault();
-      const h = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 60;
-      const y = el.getBoundingClientRect().top + window.scrollY - h - 10;
-      window.scrollTo({ top:y, behavior:'smooth' });
-    });
 
-    /* ------------ Init（最終安定版） ------------ */
     (async function init(){
-      // 0) まずは localStorage（旧）を読む
+      setHeaderHeightVar();
+      window.addEventListener('resize', setHeaderHeightVar);
+
+      // 1) 即表示：localStorage（旧）→なければDEFAULT
       const storedObj = loadLS(STORAGE_KEY);
+      applyData(normalizeForView(storedObj || {}));
 
-      // 1) 画面は即表示（DEFAULT + localStorage）
-      let initial = normalizeForView({ ...(storedObj||{}) });
-      applyData(initial);
-
-      // 2) GAS を試す
+      // 2) GAS
       const remote = await loadFromPublicApiJSONP();
-
       if(remote && remote.ok && remote.data){
         const view = normalizeForView(remote.data);
         applyData(view);
-
-        // 保存（旧キー互換 + キャッシュ）
+        // 保存は raw（意図は壊さない）
         saveLS(STORAGE_KEY, remote.data);
         saveLS(LS_CACHE_KEY, remote.data);
       } else {
-        // 3) GAS失敗 → キャッシュ（保険）
+        // 3) キャッシュ保険
         const cached = loadLS(LS_CACHE_KEY);
         if(cached){
-          const view = normalizeForView(cached);
-          applyData(view);
+          applyData(normalizeForView(cached));
           saveLS(STORAGE_KEY, cached);
         }
       }
 
-      // お知らせトグル
-      const newsToggle = $H('newsToggle'), newsMore = $H('newsListMore'); let newsOpen = false;
-      newsToggle?.addEventListener('click', (e)=>{ e.preventDefault(); newsOpen = !newsOpen;
+      // smooth scroll
+      $H('siteNav')?.addEventListener('click', (e)=>{
+        const a = e.target.closest('a[href^="#"]'); if(!a) return;
+        const id = a.getAttribute('href'); const el = document.querySelector(id); if(!el) return;
+        e.preventDefault();
+        const h = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 60;
+        const y = el.getBoundingClientRect().top + window.scrollY - h - 10;
+        window.scrollTo({ top:y, behavior:'smooth' });
+      });
+
+      // toggles
+      const newsToggle = $H('newsToggle'), newsMore = $H('newsListMore'); let newsOpen=false;
+      newsToggle?.addEventListener('click', (e)=>{
+        e.preventDefault(); newsOpen=!newsOpen;
         newsMore.style.display = newsOpen ? 'grid' : 'none';
         newsToggle.setAttribute('aria-expanded', String(newsOpen));
         newsToggle.textContent = newsOpen ? '過去のお知らせを閉じる' : '過去のお知らせも見る';
       });
 
-      // 口コミトグル
-      const rvToggle = $H('reviewsToggle'), rvMore = $H('reviewsListMore'); let rvOpen = false;
-      rvToggle?.addEventListener('click', (e)=>{ e.preventDefault(); rvOpen = !rvOpen;
+      const rvToggle = $H('reviewsToggle'), rvMore = $H('reviewsListMore'); let rvOpen=false;
+      rvToggle?.addEventListener('click', (e)=>{
+        e.preventDefault(); rvOpen=!rvOpen;
         rvMore.style.display = rvOpen ? 'grid' : 'none';
         rvToggle.setAttribute('aria-expanded', String(rvOpen));
         rvToggle.textContent = rvOpen ? '過去の口コミを閉じる' : '過去の口コミも見る';
       });
 
-      // 送信デモ
-      document.getElementById('reserveForm')?.addEventListener('submit', e=>{
+      // demo submit
+      $H('reserveForm')?.addEventListener('submit', (e)=>{
         e.preventDefault();
         alert('送信ありがとうございました！※ 実運用の送信先は編集画面で設定してください。');
       });
     })();
 
-    /* ------------ Liquid Glass Auto ------------ */
     (function(){
       try{
-        var supports = window.CSS && (CSS.supports('backdrop-filter','blur(1px)') || CSS.supports('-webkit-backdrop-filter','blur(1px)'));
+        const supports = window.CSS && (CSS.supports('backdrop-filter','blur(1px)') || CSS.supports('-webkit-backdrop-filter','blur(1px)'));
         if(supports){ document.body.classList.add('theme-liquid'); }
       }catch(e){}
     })();
   </script>
 
-  <!-- ポイント/クーポン（この部分は別途運用） -->
+  <!-- ===== ポイント/クーポン（モック） ===== -->
   <style>
     .loy-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.38); display:none; z-index:80; }
     .loy-modal{ position:fixed; inset:auto 0 0 0; margin:auto; width:min(560px, calc(100% - 24px));
@@ -701,19 +651,19 @@
 
     <div id="panePoint" class="loy-pane active" role="tabpanel" aria-labelledby="tabPoint">
       <div class="loy-row" style="margin-bottom:8px;">
-        <input id="loyId" class="loy-input" placeholder="電話番号またはメールを入力して登録">
-        <button id="btnRegister" class="loy-btn">登録/更新</button>
+        <input class="loy-input" placeholder="電話番号またはメールを入力して登録">
+        <button class="loy-btn">登録/更新</button>
       </div>
       <div class="loy-row" style="margin-bottom:8px;">
-        <input id="loyNonce" class="loy-input" placeholder="店内QRで自動入力（今日の合言葉）">
-        <button id="btnCheckin" class="loy-btn primary">チェックインする（1pt）</button>
+        <input class="loy-input" placeholder="店内QRで自動入力（今日の合言葉）">
+        <button class="loy-btn primary">チェックインする（1pt）</button>
       </div>
-      <div class="loy-progress" title="10ptでクーポン発行"><span id="loyBar"></span></div>
-      <p id="loyStatus" class="muted" style="margin:.5rem 0 0;">ポイント: 0 / 10</p>
+      <div class="loy-progress" title="10ptでクーポン発行"><span style="width:0%"></span></div>
+      <p class="muted" style="margin:.5rem 0 0;">ポイント: 0 / 10</p>
     </div>
 
     <div id="paneCoupon" class="loy-pane" role="tabpanel" aria-labelledby="tabCoupon">
-      <div id="couponList"><p class="muted">保有中のクーポンはありません。</p></div>
+      <div><p class="muted">保有中のクーポンはありません。</p></div>
     </div>
 
     <div id="paneHowto" class="loy-pane" role="tabpanel" aria-labelledby="tabHowto">
@@ -727,21 +677,17 @@
   </div>
 
   <script>
-    // ポイント部分は別途運用（ここはモック）
     const $q = (s, r=document)=>r.querySelector(s);
-
-    $q('#openLoyalty')?.addEventListener('click', openLoy);
-    $q('#loyClose')?.addEventListener('click', closeLoy);
-    $q('#loyBackdrop')?.addEventListener('click', closeLoy);
-
-    function openLoy(){
+    $q('#openLoyalty')?.addEventListener('click', ()=>{
       $q('#loyBackdrop').style.display='block';
       $q('#loyModal').style.display='block';
-    }
+    });
     function closeLoy(){
       $q('#loyBackdrop').style.display='none';
       $q('#loyModal').style.display='none';
     }
+    $q('#loyClose')?.addEventListener('click', closeLoy);
+    $q('#loyBackdrop')?.addEventListener('click', closeLoy);
 
     const tabs = [['tabPoint','panePoint'],['tabCoupon','paneCoupon'],['tabHowto','paneHowto']];
     tabs.forEach(([t,p])=>{
@@ -752,9 +698,6 @@
         });
       });
     });
-
-    $q('#btnRegister')?.addEventListener('click', ()=> alert('このポイント機能は別途運用です。'));
-    $q('#btnCheckin')?.addEventListener('click', ()=> alert('このポイント機能は別途運用です。'));
   </script>
 </body>
 </html>
