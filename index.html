@@ -501,34 +501,57 @@
         if(!PUBLIC_API_URL){ resolve({ok:false, reason:'no_url'}); return; }
 
         const cb = "cb_site_" + Math.random().toString(36).slice(2);
-        let done = false;
+        let settled = false;
+
+        // cleanupを関数化（早消ししない）
+        const cleanup = (scriptEl)=>{
+          try{ if(scriptEl && scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl); }catch(e){}
+          // すぐ delete しない：遅延実行でも落ちないよう no-op にしてしばらく保持
+          try{ window[cb] = function(){}; }catch(e){}
+          setTimeout(()=>{
+            try{ delete window[cb]; }catch(e){ window[cb]=null; }
+          }, 15000); // 15秒後に掃除（遅延対策）
+        };
 
         window[cb] = (res)=>{
-          done = true;
+          if(settled) return;
+          settled = true;
           try{
             const payloadText = res && (res.data ?? res.json);
             if(res && res.ok && payloadText){
               const remoteObj = safeParse(payloadText);
-              if(remoteObj){ resolve({ok:true, data:remoteObj, meta:res.meta||null}); return; }
+              if(remoteObj){
+                resolve({ok:true, data:remoteObj, meta:res.meta || null});
+                return;
+              }
             }
           }catch(e){}
           resolve({ok:false, raw:res});
         };
 
         const s = document.createElement("script");
+        s.async = true;
         s.src = `${PUBLIC_API_URL}?path=site&key=${encodeURIComponent(SITE_KEY)}&callback=${encodeURIComponent(cb)}&v=${Date.now()}`;
-        s.onerror = ()=> resolve({ok:false, reason:'script_error'});
+        s.onerror = ()=>{
+          if(settled) return;
+          settled = true;
+          resolve({ok:false, reason:'script_error'});
+          cleanup(s);
+        };
+        s.onload = ()=>{ cleanup(s); };
+
         document.head.appendChild(s);
 
-        setTimeout(()=>{ if(!done) resolve({ok:false, reason:'timeout'}); }, 1800);
-
+        // timeout
         setTimeout(()=>{
-          // cleanup（callbackが呼ばれてから消えるように少し遅め）
-          try{ delete window[cb]; }catch(e){ window[cb]=null; }
-          try{ s.remove(); }catch(e){}
-        }, 3500);
+          if(settled) return;
+          settled = true;
+          resolve({ok:false, reason:'timeout'});
+          cleanup(s);
+        }, 4000); // 1.8s→4sに拡張（現場の回線揺れに強く）
       });
     }
+
 
     // form grid css（あなたの元構成のまま）
     (function injectFormGridCss(){
