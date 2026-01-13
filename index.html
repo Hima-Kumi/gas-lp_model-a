@@ -534,20 +534,31 @@
           }, 15000); // 15秒後に掃除（遅延対策）
         };
 
+        // ★JSONPレスポンスの互換対応
+        // 1) 旧形式: { ok:true, data:"{...json...}", meta:{...} }
+        // 2) 新形式: { ok:true, site:{...}, meta:{...} }  ← Public API(fetch) と同型
         window[cb] = (res)=>{
           if(settled) return;
           settled = true;
           try{
+            // (2) 直接 site が来るパターン
+            if(res && res.ok && res.site && typeof res.site === "object"){
+              resolve({ ok:true, data: res.site, meta: res.meta || null });
+              return;
+            }
+
+            // (1) 文字列JSONが来るパターン
             const payloadText = res && (res.data ?? res.json);
             if(res && res.ok && payloadText){
-              const remoteObj = safeParse(payloadText);
-              if(remoteObj){
-                resolve({ok:true, data:remoteObj, meta:res.meta || null});
+              const remoteObj = (typeof payloadText === "string") ? safeParse(payloadText) : payloadText;
+              if(remoteObj && typeof remoteObj === "object"){
+                resolve({ ok:true, data: remoteObj, meta: res.meta || null });
                 return;
               }
             }
           }catch(e){}
-          resolve({ok:false, raw:res});
+
+          resolve({ ok:false, raw:res });
         };
 
         const s = document.createElement("script");
