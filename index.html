@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） -->
+  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2） -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coffee & Restaurant – マイルド</title>
@@ -290,16 +290,35 @@
   <script>
     /* ==========================================================
        Public API（JSONP）最終安定版：プロトタイプ強制表示
-       優先順位: GAS → Cache → localStorage → DEFAULT
-       表示用は normalizeForView() が DEFAULT を必ず補完
+       + Cache Normalizer v1（案2）
+       - localStorageキーに PUBLIC_API_URL + SITE_KEY を含める
+       - versionが新しい方を必ず採用（meta.version）
+       - TTL（10分）
+       - ?force=1 → サーバー強制
+       - ?reset=1 → キャッシュ削除
+       - ?debug=1 → 右下に v / source 表示
        ========================================================== */
 
     const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbzU6iZT9mKACXPbMmZTFc0Sjtn0Iriklr_Fd_jmaoNKUgWjyaF4zHBO0Hbm4BleS_MrbQ/exec";
-
-
     const SITE_KEY = "model-a";
+
+    // 旧キー（互換維持）
     const STORAGE_KEY = "cafeSiteData_v21";
     const LS_CACHE_KEY = "site_current_cache_v1";
+
+    // Cache Normalizer v1（案2）
+    const CACHE_TTL_MS = 10 * 60 * 1000; // 10分
+    const params = new URLSearchParams(location.search);
+    const FORCE = params.get("force") === "1";
+    const RESET = params.get("reset") === "1";
+    const DEBUG = params.get("debug") === "1";
+
+    // 混在排除：PUBLIC_API_URL + SITE_KEY（originも含め保険）
+    const apiSig = `${PUBLIC_API_URL}@${location.origin}`;
+    const CACHE_BASE = `sitecache:v1:${apiSig}:key=${SITE_KEY}`;
+    const LS_SITE = `${CACHE_BASE}:site`;          // raw site
+    const LS_META = `${CACHE_BASE}:meta`;          // meta
+    const LS_SAVED_AT = `${CACHE_BASE}:savedAt`;   // timestamp
 
     const DEFAULT_DATA = {
       brandColor:"#16a34a",
@@ -554,6 +573,46 @@
       });
     }
 
+    // ===== Cache Normalizer helper =====
+    const vNum = (v)=>{
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    function readNormalizedCache(){
+      const site = loadLS(LS_SITE);
+      const meta = loadLS(LS_META);
+      const savedAt = Number(localStorage.getItem(LS_SAVED_AT) || 0);
+      if(!site || !meta || !savedAt) return null;
+      const fresh = (Date.now() - savedAt) <= CACHE_TTL_MS;
+      return { site, meta, savedAt, fresh };
+    }
+
+    function writeNormalizedCache(site, meta){
+      saveLS(LS_SITE, site);
+      saveLS(LS_META, meta || {});
+      try{ localStorage.setItem(LS_SAVED_AT, String(Date.now())); }catch(e){}
+    }
+
+    function clearNormalizedCache(){
+      try{
+        localStorage.removeItem(LS_SITE);
+        localStorage.removeItem(LS_META);
+        localStorage.removeItem(LS_SAVED_AT);
+      }catch(e){}
+    }
+
+    function renderDebug(meta, source){
+      if(!DEBUG) return;
+      let el = document.getElementById("debug-version");
+      if(!el){
+        el = document.createElement("div");
+        el.id = "debug-version";
+        el.style.cssText = "position:fixed;bottom:8px;right:8px;z-index:9999;padding:6px 10px;border-radius:10px;background:#0008;color:#fff;font:12px/1.3 system-ui;";
+        document.body.appendChild(el);
+      }
+      el.textContent = `v=${meta?.version ?? "?"} (${source}) ${meta?.updated_at ?? ""}`;
+    }
 
     // form grid css（あなたの元構成のまま）
     (function injectFormGridCss(){
@@ -580,24 +639,59 @@
       setHeaderHeightVar();
       window.addEventListener('resize', setHeaderHeightVar);
 
-      // 1) 即表示：localStorage（旧）→なければDEFAULT
-      const storedObj = loadLS(STORAGE_KEY);
-      applyData(normalizeForView(storedObj || {}));
+      // ===== Cache Normalizer v1（案2）起動 =====
+      if(RESET){
+        clearNormalizedCache();
+        // 互換キーも掃除したい場合は有効化（任意）
+        // try{ localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LS_CACHE_KEY); }catch(e){}
+      }
 
-      // 2) GAS
-      const remote = await loadFromPublicApiJSONP();
-      if(remote && remote.ok && remote.data){
-        const view = normalizeForView(remote.data);
-        applyData(view);
-        // 保存は raw（意図は壊さない）
-        saveLS(STORAGE_KEY, remote.data);
-        saveLS(LS_CACHE_KEY, remote.data);
+      // 1) 即表示：正規化キャッシュ（forceでなければ）→ 互換旧LS → DEFAULT
+      const norm = readNormalizedCache();
+      if(norm && !FORCE){
+        applyData(normalizeForView(norm.site));
+        renderDebug(norm.meta, norm.fresh ? "cache" : "stale-cache");
       } else {
-        // 3) キャッシュ保険
-        const cached = loadLS(LS_CACHE_KEY);
-        if(cached){
-          applyData(normalizeForView(cached));
-          saveLS(STORAGE_KEY, cached);
+        const storedObj = loadLS(STORAGE_KEY);
+        applyData(normalizeForView(storedObj || {}));
+        renderDebug({version:"(legacy)"}, "legacy");
+      }
+
+      // 2) サーバー取得：force or TTL切れ or キャッシュ無し の時だけ
+      const shouldFetch = FORCE || !norm || !norm.fresh;
+
+      if(shouldFetch){
+        const remote = await loadFromPublicApiJSONP();
+        if(remote && remote.ok && remote.data){
+          const serverMeta = remote.meta || {};
+          const serverVer = vNum(serverMeta.version);
+          const cacheVer  = vNum(norm?.meta?.version);
+
+          if(FORCE || !norm || serverVer > cacheVer){
+            // 最新を反映
+            applyData(normalizeForView(remote.data));
+            renderDebug(serverMeta, "server");
+
+            // 正規化キャッシュ保存（raw + meta）
+            writeNormalizedCache(remote.data, serverMeta);
+
+            // 互換：旧キーも更新（他コード参照対策）
+            saveLS(STORAGE_KEY, remote.data);
+            saveLS(LS_CACHE_KEY, remote.data);
+          } else {
+            // キャッシュ保持（混在対策）
+            renderDebug(norm?.meta, "cache-kept");
+          }
+        } else {
+          // 3) サーバー失敗時：旧LS_CACHE_KEYの保険（現行挙動維持）
+          const cachedOld = loadLS(LS_CACHE_KEY);
+          if(!norm && cachedOld){
+            applyData(normalizeForView(cachedOld));
+            saveLS(STORAGE_KEY, cachedOld);
+            renderDebug({version:"(old-cache)"}, "old-cache");
+          } else {
+            renderDebug({version:"ERR"}, "server-fail");
+          }
         }
       }
 
