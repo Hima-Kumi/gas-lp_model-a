@@ -580,7 +580,7 @@
           settled = true;
           resolve({ok:false, reason:'timeout'});
           cleanup(s);
-        }, 4000); // 1.8s→4sに拡張（現場の回線揺れに強く）
+        }, 15000); // 4s→15sに拡張（GASのリダイレクト/回線揺れでタイムアウトしないように）
       });
     }
 
