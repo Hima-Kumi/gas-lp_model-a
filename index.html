@@ -320,6 +320,8 @@
     const LS_SITE = `${CACHE_BASE}:site`;          // raw site
     const LS_META = `${CACHE_BASE}:meta`;          // meta
     const LS_SAVED_AT = `${CACHE_BASE}:savedAt`;   // timestamp
+    const LS_LAST_CHECK = `${CACHE_BASE}:lastCheckAt`; // ★追加：サーバー確認の間隔制御
+    const CHECK_TTL_MS = 60 * 1000; // ★追加：サーバー再確認は最短60秒ごと
 
     const DEFAULT_DATA = {
       brandColor:"#16a34a",
@@ -611,8 +613,10 @@
         localStorage.removeItem(LS_SITE);
         localStorage.removeItem(LS_META);
         localStorage.removeItem(LS_SAVED_AT);
+        localStorage.removeItem(LS_LAST_CHECK); // ★追加
       }catch(e){}
     }
+
 
     function renderDebug(meta, source){
       if(!DEBUG) return;
@@ -670,16 +674,25 @@
       }
 
       // 2) サーバー取得：force or TTL切れ or キャッシュ無し の時だけ
-      const shouldFetch = FORCE || !norm || !norm.fresh;
+      const lastCheckAt = Number(localStorage.getItem(LS_LAST_CHECK) || 0);
+      const needCheckByInterval = (Date.now() - lastCheckAt) > CHECK_TTL_MS;
 
-      if(shouldFetch){
+      // ★TTL内でも「一定間隔でサーバー確認」する
+      const shouldFetch = FORCE || !norm || !norm.fresh || needCheckByInterval;
+
+      if (shouldFetch) {
+  // ★D) ここ：サーバー確認の開始時点で「確認時刻」を更新（成功/失敗に関係なく）
+  // 目的：失敗時に連続リトライにならないようにする
+        try { localStorage.setItem(LS_LAST_CHECK, String(Date.now())); } catch (e) {}
+
         const remote = await loadFromPublicApiJSONP();
-        if(remote && remote.ok && remote.data){
+
+        if (remote && remote.ok && remote.data) {
           const serverMeta = remote.meta || {};
           const serverVer = vNum(serverMeta.version);
           const cacheVer  = vNum(norm?.meta?.version);
 
-          if(FORCE || !norm || serverVer > cacheVer){
+          if (FORCE || !norm || serverVer > cacheVer) {
             // 最新を反映
             applyData(normalizeForView(remote.data));
             renderDebug(serverMeta, "server");
@@ -694,18 +707,21 @@
             // キャッシュ保持（混在対策）
             renderDebug(norm?.meta, "cache-kept");
           }
+
         } else {
           // 3) サーバー失敗時：旧LS_CACHE_KEYの保険（現行挙動維持）
           const cachedOld = loadLS(LS_CACHE_KEY);
-          if(!norm && cachedOld){
+
+          if (!norm && cachedOld) {
             applyData(normalizeForView(cachedOld));
             saveLS(STORAGE_KEY, cachedOld);
-            renderDebug({version:"(old-cache)"}, "old-cache");
+            renderDebug({ version: "(old-cache)" }, "old-cache");
           } else {
-            renderDebug({version:"ERR"}, "server-fail");
+            renderDebug({ version: "ERR" }, "server-fail");
           }
         }
       }
+
 
       // smooth scroll
       $H('siteNav')?.addEventListener('click', (e)=>{
