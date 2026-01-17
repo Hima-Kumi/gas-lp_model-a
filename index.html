@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2） -->
+  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2）
+       + ★View正規化の方針変更（デフォルト復活禁止：空文字/空配列も“正”） -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coffee & Restaurant – マイルド</title>
@@ -297,11 +298,14 @@
        - ?force=1 → サーバー強制
        - ?reset=1 → キャッシュ削除
        - ?debug=1 → 右下に v / source 表示
+
+       ★View正規化 方針（重要）
+       - 初回（JSONが無い）時だけ DEFAULT_DATA を見せる
+       - JSONがある場合は「空文字/空配列」も“正”として扱い、デフォルト復活を禁止する
        ========================================================== */
 
     const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbwPlSWYr28FiqFmzsrByusrCQI99DFM54IjRzKP7NE4MzrxmM5k42Fo107ejRFRADE-4g/exec";
     const SITE_KEY = "model-a";
-
 
     // 旧キー（互換維持）
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -369,50 +373,54 @@
     function saveLS(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
     function loadLS(key){ try{ const t=localStorage.getItem(key); return t? safeParse(t):null; }catch(e){ return null; } }
 
-    function emptyToDefault(val, def){
-      if(val === undefined || val === null) return def;
-      if(typeof val === "string" && val.trim() === "") return def;
-      return val;
-    }
+    // ★キー存在判定（空文字/空配列でも“存在”を尊重するため）
+    const has = (o, k)=> Object.prototype.hasOwnProperty.call(o||{}, k);
 
-    // ★プロトタイプ必ず表示：空配列や空文字は DEFAULT に戻す（View専用）
+    // ★空文字/空配列も“正”として扱う（デフォルト復活禁止）
+    // - 初回（JSONが無い）時だけ DEFAULT を補完してプロトタイプ表示
     function normalizeForView(src){
       const d = (src && typeof src === 'object') ? src : {};
-      const out = { ...DEFAULT_DATA, ...d };
+      const out = {};
 
-      out.heroImage = emptyToDefault(out.heroImage, DEFAULT_DATA.heroImage);
-      out.mapSrc    = emptyToDefault(out.mapSrc,    DEFAULT_DATA.mapSrc);
-
-      // sectionsMuted は merge
-      out.sectionsMuted = { ...(DEFAULT_DATA.sectionsMuted||{}), ...(d.sectionsMuted||{}) };
-
-      // reasons 3枠固定（title/textも空ならDEFAULTへ）
-      const rSrc = Array.isArray(d.reasons) ? d.reasons : null;
-      out.reasons = [0,1,2].map(i=>{
-        const base = DEFAULT_DATA.reasons[i] || {};
-        const r = (rSrc && rSrc[i]) ? rSrc[i] : {};
-        return {
-          title: emptyToDefault(r.title, base.title || ""),
-          text : emptyToDefault(r.text,  base.text  || ""),
-          image: emptyToDefault(r.image, base.image || "")
-        };
+      // 単純キー：キーがあれば採用、無ければDEFAULT
+      const simpleKeys = [
+        "brandColor","brandLine1","brandLine2",
+        "heroTitle","heroLead","heroImage","hours",
+        "address","parking",
+        "mapSrc","mapLinkText","mapLinkHref",
+        "altFormText","altFormHref",
+        "footerBannerText"
+      ];
+      simpleKeys.forEach(k=>{
+        out[k] = has(d,k) ? d[k] : DEFAULT_DATA[k];
       });
 
-      // menu/news/reviews：空配列は DEFAULT へ（プロトタイプ固定）
-      out.menu = (Array.isArray(d.menu) && d.menu.length) ? d.menu : (DEFAULT_DATA.menu||[]);
-      out.menu = out.menu.map((it,i)=>{
-        const base = (DEFAULT_DATA.menu && DEFAULT_DATA.menu[i]) ? DEFAULT_DATA.menu[i] : {};
-        return {
-          title: emptyToDefault(it?.title, base.title || ""),
-          desc : emptyToDefault(it?.desc,  base.desc  || ""),
-          price: emptyToDefault(it?.price, base.price || ""),
-          badge: emptyToDefault(it?.badge, base.badge || ""),
-          image: emptyToDefault(it?.image, base.image || "")
-        };
-      });
+      // sectionsMuted：キーが無い場合だけDEFAULT、ある場合はmerge（部分指定を許容）
+      if(has(d,"sectionsMuted") && d.sectionsMuted && typeof d.sectionsMuted === "object"){
+        out.sectionsMuted = { ...(DEFAULT_DATA.sectionsMuted||{}), ...(d.sectionsMuted||{}) };
+      }else{
+        out.sectionsMuted = DEFAULT_DATA.sectionsMuted;
+      }
 
-      out.news = (Array.isArray(d.news) && d.news.length) ? d.news : (DEFAULT_DATA.news||[]);
-      out.reviews = (Array.isArray(d.reviews) && d.reviews.length) ? d.reviews : (DEFAULT_DATA.reviews||[]);
+      // reasons：reasons自体が無い時だけDEFAULT。存在するなら中身は空も尊重（3枠固定）
+      const rSrc = has(d,"reasons") && Array.isArray(d.reasons) ? d.reasons : null;
+      if(!rSrc){
+        out.reasons = DEFAULT_DATA.reasons;
+      }else{
+        out.reasons = [0,1,2].map(i=>{
+          const r = rSrc[i] || {};
+          return {
+            title: has(r,"title") ? r.title : "",
+            text : has(r,"text")  ? r.text  : "",
+            image: has(r,"image") ? r.image : ""
+          };
+        });
+      }
+
+      // menu/news/reviews：配列キーが存在するなら空配列でも採用。キーが無ければDEFAULT（初回のみ）
+      out.menu    = has(d,"menu")    && Array.isArray(d.menu)    ? d.menu    : (DEFAULT_DATA.menu||[]);
+      out.news    = has(d,"news")    && Array.isArray(d.news)    ? d.news    : (DEFAULT_DATA.news||[]);
+      out.reviews = has(d,"reviews") && Array.isArray(d.reviews) ? d.reviews : (DEFAULT_DATA.reviews||[]);
 
       return out;
     }
@@ -463,21 +471,39 @@
         });
       }
 
-      // hero image (専用)
+      // hero image（空文字も正：空なら非表示）
       const heroImg = $H('heroImage');
-      if(heroImg) heroImg.src = d.heroImage || DEFAULT_DATA.heroImage;
+      if(heroImg){
+        const v = d.heroImage;
+        if(typeof v === "string" && v.trim() === ""){
+          heroImg.removeAttribute("src");
+          heroImg.style.display = "none";
+        }else{
+          heroImg.style.display = "";
+          heroImg.src = (v !== undefined && v !== null) ? String(v) : "";
+        }
+      }
 
-      // map
+      // map（空文字も正：空なら非表示）
       const mapFrame = $H('mapFrame');
-      if(mapFrame) mapFrame.src = d.mapSrc || DEFAULT_DATA.mapSrc;
+      if(mapFrame){
+        const v = d.mapSrc;
+        if(typeof v === "string" && v.trim() === ""){
+          mapFrame.removeAttribute("src");
+          mapFrame.style.display = "none";
+        }else{
+          mapFrame.style.display = "";
+          mapFrame.src = (v !== undefined && v !== null) ? String(v) : "";
+        }
+      }
 
       // href
       const mapLink = $H('mapLink');
-      if(mapLink) mapLink.href = d.mapLinkHref || DEFAULT_DATA.mapLinkHref || '#access';
+      if(mapLink) mapLink.href = (d.mapLinkHref ?? DEFAULT_DATA.mapLinkHref ?? '#access');
       const altForm = $H('altFormLink');
       if(altForm){
-        altForm.textContent = d.altFormText || DEFAULT_DATA.altFormText;
-        altForm.href = d.altFormHref || DEFAULT_DATA.altFormHref || '#';
+        altForm.textContent = (d.altFormText ?? DEFAULT_DATA.altFormText);
+        altForm.href = (d.altFormHref ?? DEFAULT_DATA.altFormHref ?? '#');
       }
 
       // reasons
@@ -617,7 +643,6 @@
       }catch(e){}
     }
 
-
     function renderDebug(meta, source){
       if(!DEBUG) return;
       let el = document.getElementById("debug-version");
@@ -681,8 +706,8 @@
       const shouldFetch = FORCE || !norm || !norm.fresh || needCheckByInterval;
 
       if (shouldFetch) {
-  // ★D) ここ：サーバー確認の開始時点で「確認時刻」を更新（成功/失敗に関係なく）
-  // 目的：失敗時に連続リトライにならないようにする
+        // ★D) ここ：サーバー確認の開始時点で「確認時刻」を更新（成功/失敗に関係なく）
+        // 目的：失敗時に連続リトライにならないようにする
         try { localStorage.setItem(LS_LAST_CHECK, String(Date.now())); } catch (e) {}
 
         const remote = await loadFromPublicApiJSONP();
@@ -721,7 +746,6 @@
           }
         }
       }
-
 
       // smooth scroll
       $H('siteNav')?.addEventListener('click', (e)=>{
