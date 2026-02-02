@@ -282,7 +282,12 @@
           <div><label>人数<select class="input" name="people"><option>1</option><option>2</option><option>3</option><option>4</option><option>5+</option></select></label></div>
         </div>
 
-        <div><label>ご要望<textarea class="input" name="msg" rows="3" placeholder="アレルギーや席のご希望など"></textarea></label></div>
+        <div>
+          <label>
+            ご要望 <small class="muted">（お問い合わせ内容はこちら）</small>
+            <textarea class="input" name="msg" rows="3" placeholder="例：席の希望、アレルギー、内容のご相談など"></textarea>
+          </label>
+        </div>
 
         <div class="actions" style="margin-top:8px;">
           <button type="submit" class="btn btn-primary" id="reserveSubmit">送信する</button>
@@ -885,6 +890,9 @@
     .loy-btn.primary{ background:var(--brand); color:#fff; border-color:transparent; }
     .loy-progress{ height:10px; background:#f2f5f9; border-radius:999px; overflow:hidden; }
     .loy-progress > span{ display:block; height:100%; width:0%; background:var(--brand); }
+
+    label small.muted{ font-weight:600; }
+
   </style>
 
   <div class="loy-backdrop" id="loyBackdrop"></div>
