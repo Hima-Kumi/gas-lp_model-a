@@ -1,10 +1,7 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2）
-       + 予約送信（GAS doPost action=reserve）対応
-       + 「Googleフォームで送る」UI削除
-  -->
+  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2） -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coffee & Restaurant – マイルド</title>
@@ -86,14 +83,9 @@
 
     .actions{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .btn{ display:inline-flex; align-items:center; gap:.6em; font-weight:700; padding:.9rem 1.2rem; border-radius:999px; box-shadow:var(--shadow);
-      transition:transform var(--speed) ease, box-shadow var(--speed) ease, background var(--speed) ease; border:1px solid transparent; cursor:pointer; }
+      transition:transform var(--speed) ease, box-shadow var(--speed) ease, background var(--speed) ease; border:1px solid transparent; }
     .btn-primary{ background:var(--brand); color:#fff; }
     .btn-ghost{ background:#fff; color:#14161a; border:1px solid var(--border); }
-
-    .btn[disabled]{ opacity:.6; cursor:not-allowed; }
-    .form-note{ margin-top:10px; font-size:.92rem; }
-    .form-note.ok{ color:#0f766e; }
-    .form-note.ng{ color:#b91c1c; }
 
     input[type],textarea,select,.input{
       width:100%; border:1px solid var(--border); border-radius:12px;
@@ -119,8 +111,7 @@
       .form-grid-3{ gap:12px !important; }
       #reserveForm .input{ padding:.7rem .9rem; }
       #reserveForm textarea{ min-height: 88px; }
-      #reserveForm .actions .btn,
-      #reserveForm .actions .btn-ghost{ padding:.65rem .95rem; }
+      #reserveForm .actions .btn{ padding:.65rem .95rem; }
 
       #reviewsList .card .pad{ padding:12px; }
       .clamp-3{
@@ -154,6 +145,20 @@
       .theme-liquid header.site-header,
       .theme-liquid footer.sticky-banner{ background: inherit; }
       .theme-liquid .card{ background:#fff; }
+    }
+
+    /* ★追加：ご要望ラベルの補助文（目立ちすぎない） */
+    .label-inline-note{
+      display:inline-block;
+      margin-left:.45rem;
+      font-size:.85rem;
+      font-weight:700;
+      color: var(--text-dim);
+      background: color-mix(in srgb, var(--muted) 70%, transparent);
+      border:1px solid var(--border);
+      padding:.15rem .45rem;
+      border-radius:999px;
+      vertical-align:middle;
     }
   </style>
 </head>
@@ -269,33 +274,28 @@
   <section class="section is-muted" id="reserve">
     <div class="container">
       <h2 class="section-title">ご予約・お問い合わせ</h2>
-
       <form id="reserveForm" class="card" style="padding:16px;">
         <div class="form-grid">
           <div><label>お名前<input class="input" name="name" required></label></div>
           <div class="col-2"><label>メール<input class="input email" name="email" type="email" required inputmode="email" autocomplete="email" placeholder="example@example.com"></label></div>
         </div>
-
         <div class="form-grid-3">
           <div><label>電話番号<input class="input" name="tel" inputmode="tel" autocomplete="tel"></label></div>
           <div><label>ご来店日時<input class="input" name="datetime" type="datetime-local"></label></div>
           <div><label>人数<select class="input" name="people"><option>1</option><option>2</option><option>3</option><option>4</option><option>5+</option></select></label></div>
         </div>
 
+        <!-- ★ここ：ユーザーフレンドリー修正（ご要望の趣旨を明示） -->
         <div>
           <label>
-            ご要望 <small class="muted">（お問い合わせ内容はこちら）</small>
-            <textarea class="input" name="msg" rows="3" placeholder="例：席の希望、アレルギー、内容のご相談など"></textarea>
+            ご要望
+            <span class="label-inline-note">席・アレルギー・ご相談など</span>
+            <textarea class="input" name="msg" rows="3" placeholder="例）静かな席希望、アレルギー（卵）、ベビーカーあり など"></textarea>
           </label>
         </div>
 
         <div class="actions" style="margin-top:8px;">
-          <button type="submit" class="btn btn-primary" id="reserveSubmit">送信する</button>
-          <span class="muted" style="font-weight:700;" id="reserveStatus" aria-live="polite"></span>
-        </div>
-
-        <div class="form-note muted" id="reserveNote">
-          ※ 送信後、担当者より折り返しご連絡します。混雑時は返信までお時間をいただく場合があります。
+          <button type="submit" class="btn btn-primary" id="reserveSubmitBtn">送信する</button>
         </div>
       </form>
     </div>
@@ -320,7 +320,7 @@
        - ?debug=1 → 右下に v / source 表示
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbzaE5HnW_zebFKpYA_DpH3pWXuw2Ez1W4rLRZcTKmaPbH4U6LoZU75-BwQA9jktC5DQzA/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbyVLTyIplTLId9S1VcuqGyrDIb69cX3_WQAdlU-bM0h7jEb15q801YjDVL4AN8CRCSQrw/exec";
     const SITE_KEY = "model-a";
 
     // 旧キー（互換維持）
@@ -379,6 +379,11 @@
         { name:"T.N.", text:"デザートが豊富で選ぶのが楽しい。", rating:5, date:"2025-09-28" }
       ]
     };
+
+    const USER_OK_ALERT =
+`ご予約およびお問い合わせ内容を受け付けました。
+内容を確認のうえ、ご予約の可否を含めてご連絡いたします。
+店舗状況により、お返事までお時間をいただく場合がございます。`;
 
     const $ = (s, r=document)=>r.querySelector(s);
     const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
@@ -482,7 +487,7 @@
         });
       }
 
-      // hero image (専用)
+      // hero image
       const heroImg = $H('heroImage');
       if(heroImg) heroImg.src = d.heroImage || DEFAULT_DATA.heroImage;
 
@@ -541,30 +546,22 @@
         const cb = "cb_site_" + Math.random().toString(36).slice(2);
         let settled = false;
 
-        // cleanupを関数化（早消ししない）
         const cleanup = (scriptEl)=>{
           try{ if(scriptEl && scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl); }catch(e){}
-          // すぐ delete しない：遅延実行でも落ちないよう no-op にしてしばらく保持
           try{ window[cb] = function(){}; }catch(e){}
           setTimeout(()=>{
             try{ delete window[cb]; }catch(e){ window[cb]=null; }
-          }, 15000); // 15秒後に掃除（遅延対策）
+          }, 15000);
         };
 
-        // ★JSONPレスポンスの互換対応
-        // 1) 旧形式: { ok:true, data:"{...json...}", meta:{...} }
-        // 2) 新形式: { ok:true, site:{...}, meta:{...} }  ← Public API(fetch) と同型
         window[cb] = (res)=>{
           if(settled) return;
           settled = true;
           try{
-            // (2) 直接 site が来るパターン
             if(res && res.ok && res.site && typeof res.site === "object"){
               resolve({ ok:true, data: res.site, meta: res.meta || null });
               return;
             }
-
-            // (1) 文字列JSONが来るパターン
             const payloadText = res && (res.data ?? res.json);
             if(res && res.ok && payloadText){
               const remoteObj = (typeof payloadText === "string") ? safeParse(payloadText) : payloadText;
@@ -574,7 +571,6 @@
               }
             }
           }catch(e){}
-
           resolve({ ok:false, raw:res });
         };
 
@@ -591,17 +587,15 @@
 
         document.head.appendChild(s);
 
-        // timeout
         setTimeout(()=>{
           if(settled) return;
           settled = true;
           resolve({ok:false, reason:'timeout'});
           cleanup(s);
-        }, 15000); // 4s→15sに拡張（GASのリダイレクト/回線揺れでタイムアウトしないように）
+        }, 15000);
       });
     }
 
-    // ===== Cache Normalizer helper =====
     const vNum = (v)=>{
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
@@ -627,7 +621,7 @@
         localStorage.removeItem(LS_SITE);
         localStorage.removeItem(LS_META);
         localStorage.removeItem(LS_SAVED_AT);
-        localStorage.removeItem(LS_LAST_CHECK); // ★追加
+        localStorage.removeItem(LS_LAST_CHECK);
       }catch(e){}
     }
 
@@ -643,7 +637,6 @@
       el.textContent = `v=${meta?.version ?? "?"} (${source}) ${meta?.updated_at ?? ""}`;
     }
 
-    // form grid css（あなたの元構成のまま）
     (function injectFormGridCss(){
       const style = document.createElement('style');
       style.textContent = `
@@ -664,64 +657,29 @@
       document.documentElement.style.setProperty('--header-h', h + 'px');
     }
 
-    // ===== 予約送信（doPost action=reserve） =====
-    function newRequestId(){
-      return "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
-    }
-
-    function setReserveStatus(text, kind){
-      const st = $H("reserveStatus");
-      const note = $H("reserveNote");
-      if(st) st.textContent = text || "";
-      if(note){
-        note.classList.remove("ok","ng");
-        if(kind === "ok") note.classList.add("ok");
-        if(kind === "ng") note.classList.add("ng");
-      }
-    }
-
-    function dtLocalToString(v){
-      // "2026-02-01T22:30" → "2026-02-01 22:30"
-      const s = String(v || "").trim();
-      if(!s) return "";
-      return s.replace("T", " ");
-    }
-
-    async function postReserve(form){
-      const fd = new FormData(form);
-      const payload = {
-        action: "reserve",
+    // ★追加：予約/問い合わせの送信（GASへPOST）
+    async function postReserveRequest_(payload){
+      const body = {
+        action: "reserve_submit",
         key: SITE_KEY,
-        name: String(fd.get("name") || "").trim(),
-        email: String(fd.get("email") || "").trim(),
-        tel: String(fd.get("tel") || "").trim(),
-        datetime: dtLocalToString(fd.get("datetime")),
-        people: String(fd.get("people") || "").trim(),
-        msg: String(fd.get("msg") || "").trim(),
-        page_url: location.href,
-        request_id: newRequestId(),
-        user_agent: navigator.userAgent
+        payload
       };
-
-      // x-www-form-urlencoded（プリフライト回避しやすい）
-      const body = new URLSearchParams(payload);
 
       const res = await fetch(PUBLIC_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-        body
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify(body)
       });
 
-      // GASがHTMLを返す場合もあるので、まず text → JSON parse
       const text = await res.text();
       let json = null;
-      try { json = JSON.parse(text); } catch (_) {}
+      try{ json = JSON.parse(text); }catch(_){}
 
       if(!res.ok){
         throw new Error(`HTTP ${res.status}`);
       }
       if(!json || !json.ok){
-        const msg = json?.error ? String(json.error) : "送信に失敗しました（応答が不正）";
+        const msg = (json && (json.error || json.message)) ? String(json.error || json.message) : "送信に失敗しました。";
         throw new Error(msg);
       }
       return json;
@@ -731,14 +689,10 @@
       setHeaderHeightVar();
       window.addEventListener('resize', setHeaderHeightVar);
 
-      // ===== Cache Normalizer v1（案2）起動 =====
       if(RESET){
         clearNormalizedCache();
-        // 互換キーも掃除したい場合は有効化（任意）
-        // try{ localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LS_CACHE_KEY); }catch(e){}
       }
 
-      // 1) 即表示：正規化キャッシュ（forceでなければ）→ 互換旧LS → DEFAULT
       const norm = readNormalizedCache();
       if(norm && !FORCE){
         applyData(normalizeForView(norm.site));
@@ -749,16 +703,11 @@
         renderDebug({version:"(legacy)"}, "legacy");
       }
 
-      // 2) サーバー取得：force or TTL切れ or キャッシュ無し の時だけ
       const lastCheckAt = Number(localStorage.getItem(LS_LAST_CHECK) || 0);
       const needCheckByInterval = (Date.now() - lastCheckAt) > CHECK_TTL_MS;
-
-      // ★TTL内でも「一定間隔でサーバー確認」する
       const shouldFetch = FORCE || !norm || !norm.fresh || needCheckByInterval;
 
       if (shouldFetch) {
-        // ★サーバー確認の開始時点で「確認時刻」を更新（成功/失敗に関係なく）
-        // 目的：失敗時に連続リトライにならないようにする
         try { localStorage.setItem(LS_LAST_CHECK, String(Date.now())); } catch (e) {}
 
         const remote = await loadFromPublicApiJSONP();
@@ -769,23 +718,17 @@
           const cacheVer  = vNum(norm?.meta?.version);
 
           if (FORCE || !norm || serverVer > cacheVer) {
-            // 最新を反映
             applyData(normalizeForView(remote.data));
             renderDebug(serverMeta, "server");
 
-            // 正規化キャッシュ保存（raw + meta）
             writeNormalizedCache(remote.data, serverMeta);
-
-            // 互換：旧キーも更新（他コード参照対策）
             saveLS(STORAGE_KEY, remote.data);
             saveLS(LS_CACHE_KEY, remote.data);
           } else {
-            // キャッシュ保持（混在対策）
             renderDebug(norm?.meta, "cache-kept");
           }
 
         } else {
-          // 3) サーバー失敗時：旧LS_CACHE_KEYの保険（現行挙動維持）
           const cachedOld = loadLS(LS_CACHE_KEY);
 
           if (!norm && cachedOld) {
@@ -825,44 +768,37 @@
         rvToggle.textContent = rvOpen ? '過去の口コミを閉じる' : '過去の口コミも見る';
       });
 
-      // reserve submit (実送信)
+      // ★送信：alertのまま（あなたの選択「1」）
       const form = $H('reserveForm');
-      const btn = $H('reserveSubmit');
+      const btn = $H('reserveSubmitBtn');
 
       form?.addEventListener('submit', async (e)=>{
         e.preventDefault();
-        if(!btn) return;
 
-        // 連打防止
-        btn.disabled = true;
-        const prevText = btn.textContent;
-        btn.textContent = "送信中…";
-        setReserveStatus("送信中です…", "");
+        if(btn) btn.disabled = true;
+
+        const fd = new FormData(form);
+        const payload = {
+          name: String(fd.get("name") || "").trim(),
+          email: String(fd.get("email") || "").trim(),
+          tel: String(fd.get("tel") || "").trim(),
+          datetime: String(fd.get("datetime") || "").trim(),
+          people: String(fd.get("people") || "").trim(),
+          msg: String(fd.get("msg") || "").trim(),
+          page_url: location.href
+        };
 
         try{
-          const result = await postReserve(form);
-          setReserveStatus("送信しました。担当者より折り返しご連絡します。", "");
-          const note = $H("reserveNote");
-          if(note){
-            note.classList.remove("muted");
-            note.classList.add("form-note","ok");
-            note.textContent = `受付番号: ${result.reserve_id || "—"}（送信完了）`;
-          }
+          await postReserveRequest_(payload);
+          alert(USER_OK_ALERT);
           form.reset();
         }catch(err){
-          console.error(err);
-          setReserveStatus("送信に失敗しました。時間をおいて再度お試しください。", "");
-          const note = $H("reserveNote");
-          if(note){
-            note.classList.remove("muted");
-            note.classList.add("form-note","ng");
-            note.textContent = "送信に失敗しました。通信状況をご確認のうえ、もう一度お試しください。";
-          }
+          alert(`送信に失敗しました。\n通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
         }finally{
-          btn.disabled = false;
-          btn.textContent = prevText || "送信する";
+          if(btn) btn.disabled = false;
         }
       });
+
     })();
 
     (function(){
@@ -890,9 +826,6 @@
     .loy-btn.primary{ background:var(--brand); color:#fff; border-color:transparent; }
     .loy-progress{ height:10px; background:#f2f5f9; border-radius:999px; overflow:hidden; }
     .loy-progress > span{ display:block; height:100%; width:0%; background:var(--brand); }
-
-    label small.muted{ font-weight:600; }
-
   </style>
 
   <div class="loy-backdrop" id="loyBackdrop"></div>
