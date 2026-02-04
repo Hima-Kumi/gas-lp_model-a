@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2） -->
+  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2）
+       + 予約送信は「フォーム送信 + hidden iframe + postMessage」（CORS非依存・事故最小化）
+  -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coffee & Restaurant – マイルド</title>
@@ -147,7 +149,6 @@
       .theme-liquid .card{ background:#fff; }
     }
 
-    /* ★追加：ご要望ラベルの補助文（目立ちすぎない） */
     .label-inline-note{
       display:inline-block;
       margin-left:.45rem;
@@ -191,7 +192,6 @@
         <p id="heroLead" data-bind="heroLead">焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。</p>
       </div>
       <div class="media-rounded">
-        <!-- ★プロトタイプ必ず表示：初期srcもDEFAULTで埋める -->
         <img id="heroImage" data-bind="heroImage"
              src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop"
              alt="店内の雰囲気">
@@ -263,7 +263,6 @@
     <div class="container">
       <h2 class="section-title">アクセス</h2>
       <div class="card">
-        <!-- ★初期srcもDEFAULTで埋める -->
         <iframe id="mapFrame" data-bind="mapSrc"
           src="https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik"
           style="width:100%; height:380px; border:0;"></iframe>
@@ -285,7 +284,6 @@
           <div><label>人数<select class="input" name="people"><option>1</option><option>2</option><option>3</option><option>4</option><option>5+</option></select></label></div>
         </div>
 
-        <!-- ★ここ：ユーザーフレンドリー修正（ご要望の趣旨を明示） -->
         <div>
           <label>
             ご要望
@@ -310,38 +308,28 @@
 
   <script>
     /* ==========================================================
-       Public API（JSONP）最終安定版：プロトタイプ強制表示
-       + Cache Normalizer v1（案2）
-       - localStorageキーに PUBLIC_API_URL + SITE_KEY を含める
-       - versionが新しい方を必ず採用（meta.version）
-       - TTL（10分）
-       - ?force=1 → サーバー強制
-       - ?reset=1 → キャッシュ削除
-       - ?debug=1 → 右下に v / source 表示
+       Public API（JSONP）表示系：あなたの①のまま
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbyVLTyIplTLId9S1VcuqGyrDIb69cX3_WQAdlU-bM0h7jEb15q801YjDVL4AN8CRCSQrw/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbzjDWjCQZVFa7L_90zegEV1ZRT16z1yiH2ZJgYo0X_5eoQUdqQlTuE-bRVF5B3mWM-8QA/exec";
     const SITE_KEY = "model-a";
 
-    // 旧キー（互換維持）
     const STORAGE_KEY = "cafeSiteData_v21";
     const LS_CACHE_KEY = "site_current_cache_v1";
 
-    // Cache Normalizer v1（案2）
-    const CACHE_TTL_MS = 10 * 60 * 1000; // 10分
+    const CACHE_TTL_MS = 10 * 60 * 1000;
     const params = new URLSearchParams(location.search);
     const FORCE = params.get("force") === "1";
     const RESET = params.get("reset") === "1";
     const DEBUG = params.get("debug") === "1";
 
-    // 混在排除：PUBLIC_API_URL + SITE_KEY（originも含め保険）
     const apiSig = `${PUBLIC_API_URL}@${location.origin}`;
     const CACHE_BASE = `sitecache:v1:${apiSig}:key=${SITE_KEY}`;
-    const LS_SITE = `${CACHE_BASE}:site`;          // raw site
-    const LS_META = `${CACHE_BASE}:meta`;          // meta
-    const LS_SAVED_AT = `${CACHE_BASE}:savedAt`;   // timestamp
-    const LS_LAST_CHECK = `${CACHE_BASE}:lastCheckAt`; // ★追加：サーバー確認の間隔制御
-    const CHECK_TTL_MS = 60 * 1000; // ★追加：サーバー再確認は最短60秒ごと
+    const LS_SITE = `${CACHE_BASE}:site`;
+    const LS_META = `${CACHE_BASE}:meta`;
+    const LS_SAVED_AT = `${CACHE_BASE}:savedAt`;
+    const LS_LAST_CHECK = `${CACHE_BASE}:lastCheckAt`;
+    const CHECK_TTL_MS = 60 * 1000;
 
     const DEFAULT_DATA = {
       brandColor:"#16a34a",
@@ -399,7 +387,6 @@
       return val;
     }
 
-    // ★プロトタイプ必ず表示：空配列や空文字は DEFAULT に戻す（View専用）
     function normalizeForView(src){
       const d = (src && typeof src === 'object') ? src : {};
       const out = { ...DEFAULT_DATA, ...d };
@@ -407,10 +394,8 @@
       out.heroImage = emptyToDefault(out.heroImage, DEFAULT_DATA.heroImage);
       out.mapSrc    = emptyToDefault(out.mapSrc,    DEFAULT_DATA.mapSrc);
 
-      // sectionsMuted は merge
       out.sectionsMuted = { ...(DEFAULT_DATA.sectionsMuted||{}), ...(d.sectionsMuted||{}) };
 
-      // reasons 3枠固定（title/textも空ならDEFAULTへ）
       const rSrc = Array.isArray(d.reasons) ? d.reasons : null;
       out.reasons = [0,1,2].map(i=>{
         const base = DEFAULT_DATA.reasons[i] || {};
@@ -422,7 +407,6 @@
         };
       });
 
-      // menu/news/reviews：空配列は DEFAULT へ（プロトタイプ固定）
       out.menu = (Array.isArray(d.menu) && d.menu.length) ? d.menu : (DEFAULT_DATA.menu||[]);
       out.menu = out.menu.map((it,i)=>{
         const base = (DEFAULT_DATA.menu && DEFAULT_DATA.menu[i]) ? DEFAULT_DATA.menu[i] : {};
@@ -465,7 +449,6 @@
     function applyData(d){
       document.documentElement.style.setProperty('--brand', d.brandColor || DEFAULT_DATA.brandColor);
 
-      // text/href bindings
       const bindMap = {
         brandLine1:'.brand__name .line1',
         brandLine2:'.brand__name .line2',
@@ -487,19 +470,15 @@
         });
       }
 
-      // hero image
       const heroImg = $H('heroImage');
       if(heroImg) heroImg.src = d.heroImage || DEFAULT_DATA.heroImage;
 
-      // map
       const mapFrame = $H('mapFrame');
       if(mapFrame) mapFrame.src = d.mapSrc || DEFAULT_DATA.mapSrc;
 
-      // href
       const mapLink = $H('mapLink');
       if(mapLink) mapLink.href = d.mapLinkHref || DEFAULT_DATA.mapLinkHref || '#access';
 
-      // reasons
       const reasonsWrap = $('#reasonsList'); reasonsWrap.innerHTML='';
       (d.reasons||[]).forEach(item=>{
         const card=document.createElement('article'); card.className='card';
@@ -507,7 +486,6 @@
         reasonsWrap.appendChild(card);
       });
 
-      // menu
       const menuWrap = $('#menuList'); menuWrap.innerHTML='';
       (d.menu||[]).forEach(item=>{
         const badge=item.badge?`<span class="badge">${item.badge}</span>`:'';
@@ -518,7 +496,6 @@
         menuWrap.appendChild(card);
       });
 
-      // news
       const sortedNews = (d.news||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,5);
       const first3 = sortedNews.slice(0,3);
       const rest = sortedNews.slice(3);
@@ -527,7 +504,6 @@
       const moreWrap = $('#newsListMore'); moreWrap.innerHTML='';
       rest.forEach(n=> moreWrap.appendChild(newsCard(n)));
 
-      // reviews
       const sortedReviews = (d.reviews||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,30);
       const rvFirst5 = sortedReviews.slice(0,5);
       const rvRest = sortedReviews.slice(5);
@@ -657,41 +633,104 @@
       document.documentElement.style.setProperty('--header-h', h + 'px');
     }
 
-    // ★追加：予約/問い合わせの送信（GASへPOST）
-    async function postReserveRequest_(payload){
-      const body = {
-        action: "reserve_submit",
-        key: SITE_KEY,
-        payload
-      };
+    /* ==========================================================
+       ★予約送信：hidden iframe + postMessage（CORS非依存）
+       - GASは HTML を返し、parent.postMessage で {ok:true, reserve_id} を返す
+       ========================================================== */
+    function createHiddenIframe(name){
+      let ifr = document.querySelector(`iframe[name="${name}"]`);
+      if(ifr) return ifr;
+      ifr = document.createElement('iframe');
+      ifr.name = name;
+      ifr.style.display = 'none';
+      document.body.appendChild(ifr);
+      return ifr;
+    }
 
-      const res = await fetch(PUBLIC_API_URL, {
-        method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify(body)
+    function newRequestId(){
+      return "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+    }
+
+    function dtLocalToString(v){
+      const s = String(v || "").trim();
+      if(!s) return "";
+      return s.replace("T", " ");
+    }
+
+    function submitReserveViaIframe(form){
+      return new Promise((resolve, reject)=>{
+        const iframeName = "reserve_iframe_" + Math.random().toString(36).slice(2);
+        createHiddenIframe(iframeName);
+
+        const fd = new FormData(form);
+
+        const payload = {
+          action: "reserve",
+          key: SITE_KEY,
+          name: String(fd.get("name") || "").trim(),
+          email: String(fd.get("email") || "").trim(),
+          tel: String(fd.get("tel") || "").trim(),
+          datetime: dtLocalToString(fd.get("datetime")),
+          people: String(fd.get("people") || "").trim(),
+          msg: String(fd.get("msg") || "").trim(),
+          page_url: location.href,
+          request_id: newRequestId(),
+          user_agent: navigator.userAgent,
+          // index側のオリジンを渡す（GASがpostMessage先を絞る場合に使える）
+          origin: location.origin
+        };
+
+        const onMessage = (ev)=>{
+          // 受信元の厳密チェックは「同一ドメインにならない」ので、ここでは“payload検証”で担保
+          try{
+            if(typeof ev.data !== "string") return;
+            const obj = JSON.parse(ev.data);
+            if(!obj || obj.type !== "reserve_result") return;
+            if(obj.request_id !== payload.request_id) return;
+
+            window.removeEventListener("message", onMessage);
+            clearTimeout(to);
+
+            if(obj.ok){
+              resolve(obj);
+            }else{
+              reject(new Error(obj.error || "送信に失敗しました。"));
+            }
+          }catch(_){}
+        };
+        window.addEventListener("message", onMessage);
+
+        const to = setTimeout(()=>{
+          window.removeEventListener("message", onMessage);
+          reject(new Error("タイムアウトしました。通信状況をご確認ください。"));
+        }, 20000);
+
+        // form送信（遷移させない）
+        const tmp = document.createElement("form");
+        tmp.method = "POST";
+        tmp.action = PUBLIC_API_URL;
+        tmp.target = iframeName;
+        tmp.style.display = "none";
+
+        Object.keys(payload).forEach(k=>{
+          const inp = document.createElement("input");
+          inp.type = "hidden";
+          inp.name = k;
+          inp.value = String(payload[k] ?? "");
+          tmp.appendChild(inp);
+        });
+
+        document.body.appendChild(tmp);
+        tmp.submit();
+        tmp.remove();
       });
-
-      const text = await res.text();
-      let json = null;
-      try{ json = JSON.parse(text); }catch(_){}
-
-      if(!res.ok){
-        throw new Error(`HTTP ${res.status}`);
-      }
-      if(!json || !json.ok){
-        const msg = (json && (json.error || json.message)) ? String(json.error || json.message) : "送信に失敗しました。";
-        throw new Error(msg);
-      }
-      return json;
     }
 
     (async function init(){
       setHeaderHeightVar();
       window.addEventListener('resize', setHeaderHeightVar);
 
-      if(RESET){
-        clearNormalizedCache();
-      }
+      if(RESET){ clearNormalizedCache(); }
 
       const norm = readNormalizedCache();
       if(norm && !FORCE){
@@ -720,17 +759,14 @@
           if (FORCE || !norm || serverVer > cacheVer) {
             applyData(normalizeForView(remote.data));
             renderDebug(serverMeta, "server");
-
             writeNormalizedCache(remote.data, serverMeta);
             saveLS(STORAGE_KEY, remote.data);
             saveLS(LS_CACHE_KEY, remote.data);
           } else {
             renderDebug(norm?.meta, "cache-kept");
           }
-
         } else {
           const cachedOld = loadLS(LS_CACHE_KEY);
-
           if (!norm && cachedOld) {
             applyData(normalizeForView(cachedOld));
             saveLS(STORAGE_KEY, cachedOld);
@@ -741,7 +777,6 @@
         }
       }
 
-      // smooth scroll
       $H('siteNav')?.addEventListener('click', (e)=>{
         const a = e.target.closest('a[href^="#"]'); if(!a) return;
         const id = a.getAttribute('href'); const el = document.querySelector(id); if(!el) return;
@@ -751,7 +786,6 @@
         window.scrollTo({ top:y, behavior:'smooth' });
       });
 
-      // toggles
       const newsToggle = $H('newsToggle'), newsMore = $H('newsListMore'); let newsOpen=false;
       newsToggle?.addEventListener('click', (e)=>{
         e.preventDefault(); newsOpen=!newsOpen;
@@ -768,29 +802,18 @@
         rvToggle.textContent = rvOpen ? '過去の口コミを閉じる' : '過去の口コミも見る';
       });
 
-      // ★送信：alertのまま（あなたの選択「1」）
+      // ★送信：iframe方式（最優先で事故を減らす）
       const form = $H('reserveForm');
       const btn = $H('reserveSubmitBtn');
 
       form?.addEventListener('submit', async (e)=>{
         e.preventDefault();
-
         if(btn) btn.disabled = true;
 
-        const fd = new FormData(form);
-        const payload = {
-          name: String(fd.get("name") || "").trim(),
-          email: String(fd.get("email") || "").trim(),
-          tel: String(fd.get("tel") || "").trim(),
-          datetime: String(fd.get("datetime") || "").trim(),
-          people: String(fd.get("people") || "").trim(),
-          msg: String(fd.get("msg") || "").trim(),
-          page_url: location.href
-        };
-
         try{
-          await postReserveRequest_(payload);
-          alert(USER_OK_ALERT);
+          const result = await submitReserveViaIframe(form);
+          // 成功：確定でOK
+          alert(USER_OK_ALERT + (result.reserve_id ? `\n\n受付番号：${result.reserve_id}` : ""));
           form.reset();
         }catch(err){
           alert(`送信に失敗しました。\n通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
