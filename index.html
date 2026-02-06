@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2）
-       + 予約送信は「フォーム送信 + hidden iframe + postMessage」（CORS非依存・事故最小化）
+       + 予約送信は「fetch + mode:no-cors（楽観成功UI）」に統一（CORSでUIが壊れない）
   -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -308,10 +308,10 @@
 
   <script>
     /* ==========================================================
-       Public API（JSONP）表示系：あなたの①のまま
+       Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbzvl9OomRHCLb3mKZc4MdFsZQYGD3vdD05jGDaA-p_pMVyuyy1EThDKYJCID6MppExoBA/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbwBcXylAHVU3aRS5Cg3Ld7u0arfZS5CZhMY9_fkaDmMqpQwNgOdmTlmB_FCclg4XVgW/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -633,97 +633,55 @@
       document.documentElement.style.setProperty('--header-h', h + 'px');
     }
 
-    /* ==========================================================
-       ★予約送信：hidden iframe + postMessage（CORS非依存）
-       - GASは HTML を返し、parent.postMessage で {ok:true, reserve_id} を返す
-       ========================================================== */
-    function createHiddenIframe(name){
-      let ifr = document.querySelector(`iframe[name="${name}"]`);
-      if(ifr) return ifr;
-      ifr = document.createElement('iframe');
-      ifr.name = name;
-      ifr.style.display = 'none';
-      document.body.appendChild(ifr);
-      return ifr;
-    }
-
+    // ==========================================================
+    // ★予約送信（筋のある最終形）
+    // - GitHub Pages → GAS は CORSで「レスポンス読めない」ことがある
+    // - なので「mode:no-cors」で送信を通し、UIは成功表示（楽観成功）
+    // - 真の成功は SS記録 / メール通知 / ログで担保（監査可能）
+    // ==========================================================
     function newRequestId(){
       return "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
     }
-
     function dtLocalToString(v){
       const s = String(v || "").trim();
       if(!s) return "";
       return s.replace("T", " ");
     }
 
-    function submitReserveViaIframe(form){
-      return new Promise((resolve, reject)=>{
-        const iframeName = "reserve_iframe_" + Math.random().toString(36).slice(2);
-        createHiddenIframe(iframeName);
+    async function submitReserveNoCors(form){
+      const fd = new FormData(form);
 
-        const fd = new FormData(form);
+      const payload = {
+        action: "reserve",
+        key: SITE_KEY,
+        name: String(fd.get("name") || "").trim(),
+        email: String(fd.get("email") || "").trim(),
+        tel: String(fd.get("tel") || "").trim(),
+        datetime: dtLocalToString(fd.get("datetime")),
+        people: String(fd.get("people") || "").trim(),
+        msg: String(fd.get("msg") || "").trim(),
+        page_url: location.href,
+        request_id: newRequestId(),
+        user_agent: navigator.userAgent
+      };
 
-        const payload = {
-          action: "reserve",
-          key: SITE_KEY,
-          name: String(fd.get("name") || "").trim(),
-          email: String(fd.get("email") || "").trim(),
-          tel: String(fd.get("tel") || "").trim(),
-          datetime: dtLocalToString(fd.get("datetime")),
-          people: String(fd.get("people") || "").trim(),
-          msg: String(fd.get("msg") || "").trim(),
-          page_url: location.href,
-          request_id: newRequestId(),
-          user_agent: navigator.userAgent,
-          // index側のオリジンを渡す（GASがpostMessage先を絞る場合に使える）
-          origin: location.origin
-        };
+      if(!payload.name) throw new Error("お名前を入力してください。");
+      if(!payload.email) throw new Error("メールを入力してください。");
 
-        const onMessage = (ev)=>{
-          // 受信元の厳密チェックは「同一ドメインにならない」ので、ここでは“payload検証”で担保
-          try{
-            if(typeof ev.data !== "string") return;
-            const obj = JSON.parse(ev.data);
-            if(!obj || obj.type !== "reserve_result") return;
-            if(obj.request_id !== payload.request_id) return;
+      // application/x-www-form-urlencoded にして「シンプルPOST」を維持
+      const body = new URLSearchParams();
+      Object.keys(payload).forEach(k=> body.append(k, String(payload[k] ?? "")));
 
-            window.removeEventListener("message", onMessage);
-            clearTimeout(to);
-
-            if(obj.ok){
-              resolve(obj);
-            }else{
-              reject(new Error(obj.error || "送信に失敗しました。"));
-            }
-          }catch(_){}
-        };
-        window.addEventListener("message", onMessage);
-
-        const to = setTimeout(()=>{
-          window.removeEventListener("message", onMessage);
-          reject(new Error("タイムアウトしました。通信状況をご確認ください。"));
-        }, 20000);
-
-        // form送信（遷移させない）
-        const tmp = document.createElement("form");
-        tmp.method = "POST";
-        tmp.action = PUBLIC_API_URL;
-        tmp.target = iframeName;
-        tmp.style.display = "none";
-
-        Object.keys(payload).forEach(k=>{
-          const inp = document.createElement("input");
-          inp.type = "hidden";
-          inp.name = k;
-          inp.value = String(payload[k] ?? "");
-          tmp.appendChild(inp);
-        });
-
-        document.body.appendChild(tmp);
-        tmp.submit();
-        tmp.remove();
+      // ★no-cors：レスポンスは読めないが送信は通る（opaqueでresolveする）
+      await fetch(PUBLIC_API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body
       });
+
+      // ここまで来たら「送信処理は開始された」とみなしてUI成功（=エラー表示を出さない）
+      return { ok:true, request_id: payload.request_id };
     }
 
     (async function init(){
@@ -802,7 +760,7 @@
         rvToggle.textContent = rvOpen ? '過去の口コミを閉じる' : '過去の口コミも見る';
       });
 
-      // ★送信：iframe方式（最優先で事故を減らす）
+      // ★送信：no-cors楽観成功（エラー表示の原因を断つ）
       const form = $H('reserveForm');
       const btn = $H('reserveSubmitBtn');
 
@@ -811,12 +769,13 @@
         if(btn) btn.disabled = true;
 
         try{
-          const result = await submitReserveViaIframe(form);
-          // 成功：確定でOK
-          alert(USER_OK_ALERT + (result.reserve_id ? `\n\n受付番号：${result.reserve_id}` : ""));
+          const result = await submitReserveNoCors(form);
+
+          // 「確定の受付番号」は読めない前提なので、メッセージは“受付完了”で統一
+          alert(USER_OK_ALERT + (result.request_id ? `\n\n受付管理ID：${result.request_id}` : ""));
           form.reset();
         }catch(err){
-          alert(`送信に失敗しました。\n通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
+          alert(`送信に失敗しました。\n入力内容と通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
         }finally{
           if(btn) btn.disabled = false;
         }
