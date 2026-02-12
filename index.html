@@ -230,8 +230,8 @@
   <section class="section" id="reviews">
     <div class="container">
       <div class="section-title">
-        <h2>口コミ</h2>
-        <a id="reviewsToggle" class="hint-inline" href="#reviews" aria-expanded="false">過去の口コミも見る</a>
+        <h2>お客様の声（店主選定）</h2>
+        <a id="reviewsToggle" class="hint-inline" href="#reviews" aria-expanded="false">過去の声も見る</a>
       </div>
       <div class="grid-3" id="reviewsList"></div>
       <div class="grid-3" id="reviewsListMore" style="display:none; margin-top:8px;"></div>
@@ -270,34 +270,106 @@
     </div>
   </section>
 
-  <section class="section is-muted" id="reserve">
-    <div class="container">
-      <h2 class="section-title">ご予約・お問い合わせ</h2>
-      <form id="reserveForm" class="card" style="padding:16px;">
-        <div class="form-grid">
-          <div><label>お名前<input class="input" name="name" required></label></div>
-          <div class="col-2"><label>メール<input class="input email" name="email" type="email" required inputmode="email" autocomplete="email" placeholder="example@example.com"></label></div>
+  <section class="section" id="reserve">
+  <div class="inner">
+    <h2>ご予約・お問い合わせ</h2>
+
+    <!-- ★追加：控えめなタブ（予約/お問い合わせ + ご感想など） -->
+    <div class="formTabs" role="tablist" aria-label="フォーム切替">
+      <button class="tabBtn active" type="button" data-tab="reserve" role="tab" aria-selected="true">ご予約・お問い合わせ</button>
+      <button class="tabBtn" type="button" data-tab="feedback" role="tab" aria-selected="false">ご感想など</button>
+    </div>
+
+    <div class="formPanel" data-panel="reserve">
+      <p class="sub">
+        予約・お問い合わせはこちらから。<br>
+        ※内容は自動で公開されません。店主が確認して対応します。
+      </p>
+
+      <form class="form" id="reserveForm">
+        <div class="grid2">
+          <div>
+            <label>お名前 <span class="req">*</span></label>
+            <input name="name" required placeholder="例）山田 太郎">
+          </div>
+          <div>
+            <label>メール <span class="req">*</span></label>
+            <input name="email" type="email" required placeholder="例）taro@example.com">
+          </div>
         </div>
-        <div class="form-grid-3">
-          <div><label>電話番号<input class="input" name="tel" inputmode="tel" autocomplete="tel"></label></div>
-          <div><label>ご来店日時<input class="input" name="datetime" type="datetime-local"></label></div>
-          <div><label>人数<select class="input" name="people"><option>1</option><option>2</option><option>3</option><option>4</option><option>5+</option></select></label></div>
+
+        <div class="grid2">
+          <div>
+            <label>電話</label>
+            <input name="tel" placeholder="例）090-1234-5678">
+          </div>
+          <div>
+            <label>ご来店日時</label>
+            <input name="datetime" placeholder="例）3/10 12:00">
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>人数</label>
+            <input name="people" placeholder="例）2名">
+          </div>
+          <div>
+            <label>ご要望</label>
+            <select name="purpose">
+              <option value="">選択してください</option>
+              <option>ご予約</option>
+              <option>お問い合わせ</option>
+              <option>その他</option>
+            </select>
+          </div>
         </div>
 
         <div>
-          <label>
-            ご要望
-            <span class="label-inline-note">席・アレルギー・ご相談など</span>
-            <textarea class="input" name="msg" rows="3" placeholder="例）静かな席希望、アレルギー（卵）、ベビーカーあり など"></textarea>
-          </label>
+          <label>内容</label>
+          <textarea name="msg" rows="4" placeholder="お問い合わせ内容・ご要望など"></textarea>
         </div>
 
-        <div class="actions" style="margin-top:8px;">
-          <button type="submit" class="btn btn-primary" id="reserveSubmitBtn">送信する</button>
+        <!-- 送信（No-CORS + 受付は保存優先） -->
+        <button class="primary" type="submit" id="reserveSubmitBtn">送信する</button>
+      </form>
+
+      <p class="sub" style="margin-top:12px;">
+        送信がうまくいかない場合は、<a class="link" id="altFormLink" href="#" target="_blank" rel="noopener">Googleフォームで送る</a> もご利用ください。
+      </p>
+    </div>
+
+    <div class="formPanel" data-panel="feedback" style="display:none;">
+      <p class="sub">
+        ご感想・ご意見などを店主に届けるためのフォームです。<br>
+        ※ここに入力した内容は<strong>公開されません</strong>。店主が拝見し、内容を選んで「お客様の声（店主選定）」として掲載する場合があります。
+      </p>
+
+      <form class="form" id="feedbackForm">
+        <!-- 簡易スパム対策（見えない入力欄：埋まっていたら破棄） -->
+        <input type="text" name="company" class="hpField" tabindex="-1" autocomplete="off" />
+
+        <div class="grid2">
+          <div>
+            <label>お名前（任意）</label>
+            <input name="name" placeholder="例）匿名でもOK">
+          </div>
+          <div>
+            <label>メール（任意）</label>
+            <input name="email" type="email" placeholder="返信が必要な場合のみご記入ください">
+          </div>
         </div>
+
+        <div>
+          <label>ご感想・ご意見 <span class="req">*</span></label>
+          <textarea name="msg" rows="5" required placeholder="例）お店の雰囲気、メニューの感想、改善希望など"></textarea>
+        </div>
+
+        <button class="primary" type="submit" id="feedbackSubmitBtn">送信する</button>
       </form>
     </div>
-  </section>
+  </div>
+</section>
 
   <footer class="sticky-banner">
     <div class="banner-text" style="gap:.8rem; flex-wrap:wrap;">
@@ -648,41 +720,169 @@
       return s.replace("T", " ");
     }
 
-    async function submitReserveNoCors(form){
-      const fd = new FormData(form);
+    // ============================================================
+// フォーム送信（CORS回避：hidden iframe + postMessage）
+// - GitHub Pages → GAS への POST をブラウザ制限なしで通す
+// - GAS 側は origin が来たら HTML を返し、parent.postMessage で結果を返す想定
+// ============================================================
+const GAS_IFRAME_NAME = "gasFormTarget";
 
-      const payload = {
-        action: "reserve",
-        key: SITE_KEY,
-        name: String(fd.get("name") || "").trim(),
-        email: String(fd.get("email") || "").trim(),
-        tel: String(fd.get("tel") || "").trim(),
-        datetime: dtLocalToString(fd.get("datetime")),
-        people: String(fd.get("people") || "").trim(),
-        msg: String(fd.get("msg") || "").trim(),
-        page_url: location.href,
-        request_id: newRequestId(),
-        user_agent: navigator.userAgent
-      };
+function newClientRequestId_(){
+  try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  return "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
+}
 
-      if(!payload.name) throw new Error("お名前を入力してください。");
-      if(!payload.email) throw new Error("メールを入力してください。");
+function buildHiddenInput_(form, name, value){
+  let inp = form.querySelector(`input[type="hidden"][name="${name}"]`);
+  if(!inp){
+    inp = document.createElement("input");
+    inp.type = "hidden";
+    inp.name = name;
+    form.appendChild(inp);
+  }
+  inp.value = String(value ?? "");
+  return inp;
+}
 
-      // application/x-www-form-urlencoded にして「シンプルPOST」を維持
-      const body = new URLSearchParams();
-      Object.keys(payload).forEach(k=> body.append(k, String(payload[k] ?? "")));
-
-      // ★no-cors：レスポンスは読めないが送信は通る（opaqueでresolveする）
-      await fetch(PUBLIC_API_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-        body
-      });
-
-      // ここまで来たら「送信処理は開始された」とみなしてUI成功（=エラー表示を出さない）
-      return { ok:true, request_id: payload.request_id };
+function setFormBusy_(form, submitBtn, on, label){
+  if(submitBtn){
+    submitBtn.disabled = !!on;
+    if(label && on){
+      submitBtn.dataset._origText = submitBtn.textContent;
+      submitBtn.textContent = label;
     }
+    if(!on && submitBtn.dataset._origText){
+      submitBtn.textContent = submitBtn.dataset._origText;
+      delete submitBtn.dataset._origText;
+    }
+  }
+  form.classList.toggle("isBusy", !!on);
+}
+
+function waitForGASResult_(requestId, timeoutMs){
+  return new Promise((resolve, reject)=>{
+    const t = setTimeout(()=>{
+      cleanup();
+      reject(new Error("timeout"));
+    }, Math.max(3000, Number(timeoutMs || 15000)));
+
+    function onMessage(ev){
+      // GAS 側は parent.postMessage(JSON.stringify(payload), origin) の想定
+      let data = ev && ev.data;
+      if(!data) return;
+
+      // 文字列JSONの想定（GAS実装）
+      if(typeof data === "string"){
+        try{ data = JSON.parse(data); }catch(e){ return; }
+      }
+      if(!data || typeof data !== "object") return;
+
+      // request_id が一致するものだけ採用
+      const rid = String(data.request_id || "");
+      if(rid !== String(requestId)) return;
+
+      cleanup();
+      resolve(data);
+    }
+
+    function cleanup(){
+      clearTimeout(t);
+      window.removeEventListener("message", onMessage);
+    }
+
+    window.addEventListener("message", onMessage);
+  });
+}
+
+async function submitToGASViaIframe_(form, action, extraFields){
+  // 1) 送信前に hidden を仕込む
+  const requestId = newClientRequestId_();
+  buildHiddenInput_(form, "action", action);
+  buildHiddenInput_(form, "key", SITE_KEY);
+  buildHiddenInput_(form, "origin", location.origin);
+  buildHiddenInput_(form, "request_id", requestId);
+  buildHiddenInput_(form, "page_url", location.href);
+  buildHiddenInput_(form, "user_agent", navigator.userAgent);
+
+  if(extraFields && typeof extraFields === "object"){
+    Object.keys(extraFields).forEach(k=>{
+      buildHiddenInput_(form, k, extraFields[k]);
+    });
+  }
+
+  // 2) form の基本設定
+  form.method = "POST";
+  form.action = PUBLIC_API_URL;
+  form.target = GAS_IFRAME_NAME;
+
+  // 3) 送信 → postMessage を待つ
+  const wait = waitForGASResult_(requestId, 20000);
+  form.submit();
+  return await wait;
+}
+
+async function submitReserveNoCors(formOrPayload){
+  // 旧関数名を維持しつつ、中身を iframe 方式に置換（事故防止）
+  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : $H.$('#reserveForm');
+  const btn  = $H.$('#reserveSubmitBtn');
+  if(!form) throw new Error("reserveForm not found");
+
+  // 簡易スパム対策：ハニーポットが埋まっていたら無視
+  const hp = form.querySelector('input[name="company"]');
+  if(hp && String(hp.value||"").trim()){
+    return { ok:true, ignored:true, request_id:"" };
+  }
+
+  // payload を組み立て（form優先）
+  const payload = (formOrPayload instanceof HTMLFormElement)
+    ? {
+        name: String(form.querySelector('[name="name"]')?.value || "").trim(),
+        email: String(form.querySelector('[name="email"]')?.value || "").trim(),
+        tel: String(form.querySelector('[name="tel"]')?.value || "").trim(),
+        datetime: String(form.querySelector('[name="datetime"]')?.value || "").trim(),
+        people: String(form.querySelector('[name="people"]')?.value || "").trim(),
+        msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
+      }
+    : (formOrPayload || {});
+
+  setFormBusy_(form, btn, true, "送信中…");
+  try{
+    return await submitToGASViaIframe_(form, "reserve", payload);
+  }finally{
+    setFormBusy_(form, btn, false);
+  }
+}
+
+
+    async function submitFeedbackNoCors(formOrPayload){
+  // 旧関数名を維持しつつ、中身を iframe 方式に置換（事故防止）
+  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : $H.$('#feedbackForm');
+  const btn  = $H.$('#feedbackSubmitBtn');
+  if(!form) throw new Error("feedbackForm not found");
+
+  // 簡易スパム対策：ハニーポットが埋まっていたら無視
+  const hp = form.querySelector('input[name="company"]');
+  if(hp && String(hp.value||"").trim()){
+    return { ok:true, ignored:true, request_id:"" };
+  }
+
+  const payload = (formOrPayload instanceof HTMLFormElement)
+    ? {
+        name: String(form.querySelector('[name="name"]')?.value || "").trim(),
+        email: String(form.querySelector('[name="email"]')?.value || "").trim(),
+        msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
+      }
+    : (formOrPayload || {});
+
+  setFormBusy_(form, btn, true, "送信中…");
+  try{
+    // feedback は GAS 側で「感想」扱い（公開反映しない）
+    return await submitToGASViaIframe_(form, "feedback", payload);
+  }finally{
+    setFormBusy_(form, btn, false);
+  }
+}
+
 
     (async function init(){
       setHeaderHeightVar();
@@ -757,7 +957,7 @@
         e.preventDefault(); rvOpen=!rvOpen;
         rvMore.style.display = rvOpen ? 'grid' : 'none';
         rvToggle.setAttribute('aria-expanded', String(rvOpen));
-        rvToggle.textContent = rvOpen ? '過去の口コミを閉じる' : '過去の口コミも見る';
+        rvToggle.textContent = rvOpen ? '過去の声を閉じる' : '過去の声も見る';
       });
 
       // ★送信：no-cors楽観成功（エラー表示の原因を断つ）
@@ -808,7 +1008,31 @@
     .loy-btn.primary{ background:var(--brand); color:#fff; border-color:transparent; }
     .loy-progress{ height:10px; background:#f2f5f9; border-radius:999px; overflow:hidden; }
     .loy-progress > span{ display:block; height:100%; width:0%; background:var(--brand); }
-  </style>
+  
+
+/* ============================================================
+   ★追加：予約フォーム内タブ（控えめ）
+============================================================ */
+.formTabs{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
+.tabBtn{
+  border:1px solid var(--border);
+  background:#fff;
+  padding:.55rem .9rem;
+  border-radius:999px;
+  cursor:pointer;
+  font-weight:900;
+  color:var(--text-dim);
+}
+.tabBtn.active{
+  background:var(--muted);
+  color:var(--text);
+  border-color:var(--border);
+}
+.formPanel{ margin-top:8px; }
+/* honeypot */
+.hpField{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+
+</style>
 
   <div class="loy-backdrop" id="loyBackdrop"></div>
   <div class="loy-modal" id="loyModal" role="dialog" aria-modal="true" aria-labelledby="loyTitle">
@@ -855,6 +1079,60 @@
       $q('#loyBackdrop').style.display='block';
       $q('#loyModal').style.display='block';
     });
+
+    // ==========================================================
+    // ★追加：フォーム内タブ切替（予約/お問い合わせ ↔ ご感想など）
+    // ==========================================================
+    (function initReserveTabs(){
+      const tabs = document.querySelectorAll(".formTabs .tabBtn");
+      const panels = document.querySelectorAll("#reserve .formPanel");
+      if(!tabs.length || !panels.length) return;
+
+      function setTab(name){
+        tabs.forEach(b=>{
+          const on = (b.dataset.tab === name);
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        panels.forEach(p=>{
+          const on = (p.getAttribute("data-panel") === name);
+          p.style.display = on ? "" : "none";
+        });
+      }
+
+      tabs.forEach(b=>{
+        b.addEventListener("click", ()=> setTab(b.dataset.tab || "reserve"));
+      });
+
+      // 初期
+      setTab("reserve");
+    })();
+
+    // ==========================================================
+    // ★追加：ご感想など（No-CORS送信）
+    // ==========================================================
+    const feedbackForm = $H('feedbackForm');
+    const feedbackBtn  = $H('feedbackSubmitBtn');
+
+    feedbackForm?.addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
+      try{
+        if(feedbackBtn) feedbackBtn.disabled = true;
+        const r = await submitFeedbackNoCors(feedbackForm);
+        // no-cors なのでブラウザで成否判定できない → 受付優先で成功扱い
+        if(r && r.ignored){
+          alert("送信を受け付けました。");
+        }else{
+          alert("送信を受け付けました。店主が拝見します。");
+        }
+        feedbackForm.reset();
+      }catch(err){
+        alert("送信に失敗しました。時間をおいて再度お試しください。");
+        console.error(err);
+      }finally{
+        if(feedbackBtn) feedbackBtn.disabled = false;
+      }
+    });
     function closeLoy(){
       $q('#loyBackdrop').style.display='none';
       $q('#loyModal').style.display='none';
@@ -872,5 +1150,8 @@
       });
     });
   </script>
+
+  <iframe id="gasFormTarget" name="gasFormTarget" style="display:none;width:0;height:0;border:0;"></iframe>
+
 </body>
 </html>
