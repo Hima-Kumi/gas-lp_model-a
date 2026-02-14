@@ -431,6 +431,10 @@
     const $ = (s, r=document)=>r.querySelector(s);
     const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
     const $H = (id)=>document.getElementById(id);
+    // ★Fix: $H.$ を querySelector として提供（v6の送信処理互換）
+    $H.$ = (sel, root=document) => (root || document).querySelector(sel);
+    $H.$$ = (sel, root=document) => Array.from((root || document).querySelectorAll(sel));
+
 
     function safeParse(str){ try{ return JSON.parse(str); }catch(e){ return null; } }
     function saveLS(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
