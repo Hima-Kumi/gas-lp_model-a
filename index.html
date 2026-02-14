@@ -366,7 +366,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz98rA42YQNJyo6NV_N-esDjcBnoCJ7KQn5k5A8APlHdhQfgfF7DfmKPEbXQMN_wTHX/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbx25GyPKRfHJKvJrMZMMa_H62IDjX71WWquv1i97-1y0c3rcZC8l8p2bSUFFrSI53U/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -431,6 +431,11 @@
     const $ = (s, r=document)=>r.querySelector(s);
     const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
     const $H = (id)=>document.getElementById(id);
+// ★v6修正：$H を「ID取得関数 + DOMユーティリティ」両方として使えるよう拡張（$H.$ が未定義で落ちるのを防止）
+$H.$  = (sel, root=document)=> root.querySelector(sel);
+$H.$$ = (sel, root=document)=> Array.from(root.querySelectorAll(sel));
+$H.on = (node, ev, fn, opt)=>{ if(node) node.addEventListener(ev, fn, opt); };
+
 
     function safeParse(str){ try{ return JSON.parse(str); }catch(e){ return null; } }
     function saveLS(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
