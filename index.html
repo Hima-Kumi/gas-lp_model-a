@@ -896,11 +896,16 @@ async function submitReserveNoCors(formOrPayload){
   }
 
   const payload = (formOrPayload instanceof HTMLFormElement)
-    ? {
-        name: String(form.querySelector('[name="name"]')?.value || "").trim(),
-        email: String(form.querySelector('[name="email"]')?.value || "").trim(),
-        msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
-      }
+    ? (() => {
+        const nickname = String(form.querySelector('[name="nickname"]')?.value || "").trim();
+        const msg = String(form.querySelector('[name="msg"]')?.value || "").trim();
+        return {
+          // ★PublicAPI側は nickname / message を期待（msg も互換として残す）
+          nickname,
+          message: msg,
+          msg,
+        };
+      })()
     : (formOrPayload || {});
 
   setFormBusy_(form, btn, true, "送信中…");
