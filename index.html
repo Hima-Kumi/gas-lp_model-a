@@ -1327,5 +1327,19 @@ async function submitReserveNoCors(formOrPayload){
 
   <iframe id="gasFormTarget" name="gasFormTarget" style="display:none;width:0;height:0;border:0;"></iframe>
 
+<script>
+/* ---- SAFETY: $H helper fallback (non-breaking) ---- */
+(function(){
+  const g = window;
+  if (!g.$H || typeof g.$H !== "object") g.$H = {};
+  if (typeof g.$H.$ !== "function") {
+    g.$H.$ = function(sel, root){ return (root || document).querySelector(sel); };
+  }
+  if (typeof g.$H.$$ !== "function") {
+    g.$H.$$ = function(sel, root){ return Array.from((root || document).querySelectorAll(sel)); };
+  }
+})();
+</script>
+
 </body>
 </html>
