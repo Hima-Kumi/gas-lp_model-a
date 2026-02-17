@@ -366,7 +366,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz4S6wDaCI2JGxHXH9pgdsw2mCtapzHAkYTXKYLc0EOofIy9JmzpsqHekpJumyl44JT/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz2aNHYHkYXLOp2i0bFfrtJaZze5dm1BnAhiQptTm_QF4Ty9kT2FjKY5jzOFHn_YWhM/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -973,7 +973,7 @@
             throw new Error(result?.error || 'Unknown error during submission.');
           }
         }catch(err){
-          alert("送信に失敗しました。時間をおいて再度お試しください。");
+          alert(`送信に失敗しました。\n入力内容と通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
           console.error(err);
         }
       });
