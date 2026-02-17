@@ -278,13 +278,14 @@
         <button type="button" class="reserveTab" id="tabFeedback" role="tab" aria-selected="false" aria-controls="panelFeedback">ご感想など</button>
       </div>
 
+      <div class="reservePanels">
       <!-- =========================================================
            パネル：ご予約・お問い合わせ（★スクショAのUI/レイアウトを維持）
       ========================================================== -->
       <div id="panelReserve" class="reservePanel" role="tabpanel" aria-labelledby="tabReserve">
         <form class="form-grid" id="reserveForm">
           <label>お名前
-            <input name="name" placeholder="例）山田 太郎" autocomplete="name" />
+            <input class="input" name="name" placeholder="例）山田 太郎" autocomplete="name" />
           </label>
 
           <label>メール
@@ -346,6 +347,7 @@
             <button class="btn primary" type="submit" id="feedbackSubmitBtn">送信する</button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   </div>
@@ -1012,33 +1014,130 @@ async function submitReserveNoCors(formOrPayload){
 .formPanel{ margin-top:8px; }
 /* honeypot */
 .hpField{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+    /* --- feedback/reserve honeypot: must be invisible but remain in DOM --- */
+    .honeypot{
+      position:absolute !important;
+      left:-9999px !important;
+      top:auto !important;
+      width:1px !important;
+      height:1px !important;
+      overflow:hidden !important;
+      opacity:0 !important;
+      pointer-events:none !important;
+    }
+    .form-status:empty{ display:none; }
+
+    /* 旧文言の復活防止（必要なら後で復活できるように、表示だけ抑止） */
+    #reserveAltNote{ display:none !important; }
 
 
-    /* ===== Reserve Tabs（タイトルをタブ化） ===== */
-    .reserveTabBar{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      margin:0 0 12px;
+
+    /* ===== NEW: Stylish Reserve Form UI (v6) ===== */
+    #reserve > .container > .card {
+      background-color: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
     }
-    .reserveTab{
-      appearance:none;
-      border:1px solid var(--border);
-      background:#fff;
-      color:var(--text);
-      border-radius:999px;
-      padding:.55rem .9rem;
-      font-weight:900;
-      cursor:pointer;
-      line-height:1;
+
+    .reserveTabBar {
+      display: flex;
+      justify-content: center;
+      padding: 0;
+      border-bottom: none;
+      margin-bottom: 20px;
     }
-    .reserveTab.is-active{
+
+    .reserveTab {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text-dim);
+      font-weight: 700;
+      padding: 10px 20px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    .reserveTab:first-of-type {
+      border-radius: 999px 0 0 999px;
+    }
+    .reserveTab:last-of-type {
+      border-radius: 0 999px 999px 0;
+      border-left: none;
+    }
+
+    .reserveTab:hover:not(.is-active) {
+      background: var(--muted);
+      color: var(--text);
+    }
+    
+    .reserveTab.is-active {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+      box-shadow: 0 4px 15px color-mix(in srgb, var(--brand) 30%, transparent);
+      z-index: 2;
+    }
+
+    .reservePanels {
+      background-color: #fff;
+      padding: clamp(20px, 4vw, 32px);
+      border-radius: var(--radius);
+      margin-top: 0;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    #reserve label {
+      font-weight: 700;
+      font-size: .9rem;
+      color: var(--text-dim);
+    }
+
+    #reserve .input, #reserve textarea, #reserve select {
+      background-color: var(--muted);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 1rem 1.1rem;
+      margin-top: 4px;
+    }
+    
+    #reserve .input:focus, #reserve textarea:focus, #reserve select:focus {
+      background-color: #fff;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
+    }
+
+    .reservePanel .btn.primary {
+      background: var(--brand);
+      font-weight: 700;
+      padding: 14px 24px;
+      border: none;
+      box-shadow: 0 4px 15px color-mix(in srgb, var(--brand) 30%, transparent);
+      transform: translateY(0);
+      transition: all 0.2s ease-out;
+    }
+    
+    .reservePanel .btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px color-mix(in srgb, var(--brand) 40%, transparent);
+      filter: brightness(1.05);
+    }
+
+    .reservePanel[hidden]{ display:none !important; }
+    
+    .reservePanel .btn.primary{
       background:var(--brand);
       color:#fff;
-      border-color:transparent;
+      border:1px solid transparent;
+      box-shadow:0 10px 22px rgba(0,0,0,.12);
+      font-weight:900;
+      padding:12px 18px;
     }
-    .reservePanel[hidden]{ display:none !important; }
+    .reservePanel .btn.primary:hover{ filter:brightness(.98); }
+    
     .form-status{ font-size:.95rem; color:var(--dim); }
 
 </style>
@@ -1167,30 +1266,56 @@ async function submitReserveNoCors(formOrPayload){
     const tabFeedback = document.getElementById('tabFeedback');
     const panelReserve = document.getElementById('panelReserve');
     const panelFeedback = document.getElementById('panelFeedback');
+    const panelsWrap = document.querySelector('#reserve .reservePanels');
     if(!tabReserve || !tabFeedback || !panelReserve || !panelFeedback) return;
 
-    function activate(which){
+    function setPanelsMinHeight(){
+      if(!panelsWrap) return;
+      // 一瞬だけ両方を表示して高さを測る（位置ズレ防止）
+      const prevReserveHidden = panelReserve.hidden;
+      const prevFeedbackHidden = panelFeedback.hidden;
+
+      panelReserve.hidden = false;
+      panelFeedback.hidden = false;
+
+      // scrollHeight を使う（hidden=false なので確実に取れる）
+      const maxH = Math.max(panelReserve.scrollHeight, panelFeedback.scrollHeight);
+
+      // 元に戻す
+      panelReserve.hidden = prevReserveHidden;
+      panelFeedback.hidden = prevFeedbackHidden;
+
+      panelsWrap.style.minHeight = (maxH || 0) + 'px';
+    }
+
+    function activate(which, keepScroll=true){
       const isReserve = which === 'reserve';
+      const y = window.scrollY;
+
       tabReserve.classList.toggle('is-active', isReserve);
       tabFeedback.classList.toggle('is-active', !isReserve);
 
-      tabReserve.setAttribute('aria-selected', isReserve ? 'true' : 'false');
-      tabFeedback.setAttribute('aria-selected', !isReserve ? 'true' : 'false');
+      panelReserve.hidden = !isReserve;
+      panelFeedback.hidden = isReserve;
 
-      if(isReserve){
-        panelReserve.hidden = false;
-        panelFeedback.hidden = true;
-      }else{
-        panelReserve.hidden = true;
-        panelFeedback.hidden = false;
+      // 高さを固定して、クリック時にページが上下に動くのを防ぐ
+      setPanelsMinHeight();
+
+      if(keepScroll){
+        requestAnimationFrame(()=> window.scrollTo({ top: y, left: 0, behavior: 'auto' }));
       }
     }
 
-    tabReserve.addEventListener('click', ()=> activate('reserve'));
-    tabFeedback.addEventListener('click', ()=> activate('feedback'));
+    tabReserve.addEventListener('click', (e)=>{ e.preventDefault(); activate('reserve'); });
+    tabFeedback.addEventListener('click', (e)=>{ e.preventDefault(); activate('feedback'); });
 
-    // 初期
-    activate('reserve');
+    window.addEventListener('resize', ()=> setPanelsMinHeight());
+
+    // 初期（先に高さ確定→表示）
+    panelReserve.hidden = false;
+    panelFeedback.hidden = true;
+    setPanelsMinHeight();
+    activate('reserve', false);
   })();
 
 </script>
