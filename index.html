@@ -804,65 +804,73 @@ async function submitToGASViaIframe_(form, action, extraFields){
   return await wait;
 }
 
-async function submitReserveNoCors(formOrPayload){
-  // 旧関数名を維持しつつ、中身を iframe 方式に置換（事故防止）
-  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : $H.$('#reserveForm');
-  const btn  = $H.$('#reserveSubmitBtn');
-  if(!form) throw new Error("reserveForm not found");
+async function submitReserveNoCors(form){
+  // v6: keep UI/layout. Fix: remove $H dependency & stabilize payload.
+  const q = (sel) => form.querySelector(sel);
+  const v = (sel) => (q(sel)?.value ?? "").trim();
 
-  // 簡易スパム対策：ハニーポットが埋まっていたら無視
-  const hp = form.querySelector('input[name="company"]');
-  if(hp && String(hp.value||"").trim()){
-    return { ok:true, ignored:true, request_id:"" };
+  const payload = {
+    action: "reserve_submit",
+    site_key: (window.SITE_KEY || "model-a"),
+    name: v('[name="name"]'),
+    email: v('[name="email"]'),
+    tel: v('[name="tel"]'),
+    datetime: v('[name="datetime"]'),
+    people: v('[name="people"]'),
+    message: v('[name="message"]'),
+    page_url: location.href,
+    user_agent: navigator.userAgent
+  };
+
+  // required: email
+  if(!payload.email){
+    throw new Error("メール（必須）を入力してください。");
   }
 
-  // payload を組み立て（form優先）
-  const payload = (formOrPayload instanceof HTMLFormElement)
-    ? {
-        nickname: String(form.querySelector('[name="nickname"]')?.value || "").trim(),
-        email: "".trim(),
-        tel: String(form.querySelector('[name="tel"]')?.value || "").trim(),
-        datetime: String(form.querySelector('[name="datetime"]')?.value || "").trim(),
-        people: String(form.querySelector('[name="people"]')?.value || "").trim(),
-        message: String(form.querySelector('[name="msg"]')?.value || "").trim(),
-      }
-    : (formOrPayload || {});
-
-  setFormBusy_(form, btn, true, "送信中…");
+  setFormBusy_(form, true);
   try{
-    return await submitToGASViaIframe_(form, "reserve", payload);
-  }finally{
-    setFormBusy_(form, btn, false);
+    const res = await submitToGASViaIframe_(payload);
+    if(!res || res.ok !== true){
+      throw new Error(res?.error || "送信に失敗しました。");
+    }
+    alertOk_("送信を受け付けました。店主が拝見します。");
+    form.reset();
+    return res;
+  } finally{
+    setFormBusy_(form, false);
   }
 }
 
 
-    async function submitFeedbackNoCors(formOrPayload){
-  // 旧関数名を維持しつつ、中身を iframe 方式に置換（事故防止）
-  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : $H.$('#feedbackForm');
-  const btn  = $H.$('#feedbackSubmitBtn');
-  if(!form) throw new Error("feedbackForm not found");
+    async function submitFeedbackNoCors(form){
+  // v6: keep UI/layout. Fix: remove $H dependency & stabilize payload.
+  const q = (sel) => form.querySelector(sel);
+  const v = (sel) => (q(sel)?.value ?? "").trim();
 
-  // 簡易スパム対策：ハニーポットが埋まっていたら無視
-  const hp = form.querySelector('input[name="company"]');
-  if(hp && String(hp.value||"").trim()){
-    return { ok:true, ignored:true, request_id:"" };
+  const payload = {
+    action: "feedback_submit",
+    site_key: (window.SITE_KEY || "model-a"),
+    nickname: v('[name="nickname"]'),
+    message: v('[name="message"]'),
+    page_url: location.href,
+    user_agent: navigator.userAgent
+  };
+
+  if(!payload.message){
+    throw new Error("ご感想など（必須）を入力してください。");
   }
 
-  const payload = (formOrPayload instanceof HTMLFormElement)
-    ? {
-        nickname: String(form.querySelector('[name="nickname"]')?.value || "").trim(),
-        email: "".trim(),
-        message: String(form.querySelector('[name="msg"]')?.value || "").trim(),
-      }
-    : (formOrPayload || {});
-
-  setFormBusy_(form, btn, true, "送信中…");
+  setFormBusy_(form, true);
   try{
-    // feedback は GAS 側で「感想」扱い（公開反映しない）
-    return await submitToGASViaIframe_(form, "feedback", payload);
-  }finally{
-    setFormBusy_(form, btn, false);
+    const res = await submitToGASViaIframe_(payload);
+    if(!res || res.ok !== true){
+      throw new Error(res?.error || "送信に失敗しました。");
+    }
+    alertOk_("送信を受け付けました。店主が拝見します。");
+    form.reset();
+    return res;
+  } finally{
+    setFormBusy_(form, false);
   }
 }
 
@@ -1326,20 +1334,6 @@ async function submitReserveNoCors(formOrPayload){
 </script>
 
   <iframe id="gasFormTarget" name="gasFormTarget" style="display:none;width:0;height:0;border:0;"></iframe>
-
-<script>
-/* ---- SAFETY: $H helper fallback (non-breaking) ---- */
-(function(){
-  const g = window;
-  if (!g.$H || typeof g.$H !== "object") g.$H = {};
-  if (typeof g.$H.$ !== "function") {
-    g.$H.$ = function(sel, root){ return (root || document).querySelector(sel); };
-  }
-  if (typeof g.$H.$$ !== "function") {
-    g.$H.$$ = function(sel, root){ return Array.from((root || document).querySelectorAll(sel)); };
-  }
-})();
-</script>
 
 </body>
 </html>
