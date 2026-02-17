@@ -428,7 +428,6 @@
 内容を確認のうえ、ご予約の可否を含めてご連絡いたします。
 店舗状況により、お返事までお時間をいただく場合がございます。`;
 
-    // DOM helpers (no $H / avoid conflicts) - DE-DUPLICATED
     const $  = (sel, root=document) => root.querySelector(sel);
     const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
     const byId = (id) => document.getElementById(id);
@@ -446,38 +445,22 @@
     function normalizeForView(src){
       const d = (src && typeof src === 'object') ? src : {};
       const out = { ...DEFAULT_DATA, ...d };
-
       out.heroImage = emptyToDefault(out.heroImage, DEFAULT_DATA.heroImage);
       out.mapSrc    = emptyToDefault(out.mapSrc,    DEFAULT_DATA.mapSrc);
-
       out.sectionsMuted = { ...(DEFAULT_DATA.sectionsMuted||{}), ...(d.sectionsMuted||{}) };
-
       const rSrc = Array.isArray(d.reasons) ? d.reasons : null;
       out.reasons = [0,1,2].map(i=>{
         const base = DEFAULT_DATA.reasons[i] || {};
         const r = (rSrc && rSrc[i]) ? rSrc[i] : {};
-        return {
-          title: emptyToDefault(r.title, base.title || ""),
-          text : emptyToDefault(r.text,  base.text  || ""),
-          image: emptyToDefault(r.image, base.image || "")
-        };
+        return { title: emptyToDefault(r.title, base.title || ""), text : emptyToDefault(r.text,  base.text  || ""), image: emptyToDefault(r.image, base.image || "") };
       });
-
       out.menu = (Array.isArray(d.menu) && d.menu.length) ? d.menu : (DEFAULT_DATA.menu||[]);
       out.menu = out.menu.map((it,i)=>{
         const base = (DEFAULT_DATA.menu && DEFAULT_DATA.menu[i]) ? DEFAULT_DATA.menu[i] : {};
-        return {
-          title: emptyToDefault(it?.title, base.title || ""),
-          desc : emptyToDefault(it?.desc,  base.desc  || ""),
-          price: emptyToDefault(it?.price, base.price || ""),
-          badge: emptyToDefault(it?.badge, base.badge || ""),
-          image: emptyToDefault(it?.image, base.image || "")
-        };
+        return { title: emptyToDefault(it?.title, base.title || ""), desc : emptyToDefault(it?.desc,  base.desc  || ""), price: emptyToDefault(it?.price, base.price || ""), badge: emptyToDefault(it?.badge, base.badge || ""), image: emptyToDefault(it?.image, base.image || "") };
       });
-
       out.news = (Array.isArray(d.news) && d.news.length) ? d.news : (DEFAULT_DATA.news||[]);
       out.reviews = (Array.isArray(d.reviews) && d.reviews.length) ? d.reviews : (DEFAULT_DATA.reviews||[]);
-
       return out;
     }
 
@@ -504,54 +487,31 @@
 
     function applyData(d){
       document.documentElement.style.setProperty('--brand', d.brandColor || DEFAULT_DATA.brandColor);
-
-      const bindMap = {
-        brandLine1:'.brand__name .line1',
-        brandLine2:'.brand__name .line2',
-        heroTitle:'#heroTitle',
-        heroLead:'#heroLead',
-        hours:['#hours','#hoursChip'],
-        address:'#addr',
-        parking:'#parking',
-        mapLinkText:'#mapLink',
-        footerBannerText:'#footerBannerText',
-      };
-
+      const bindMap = { brandLine1:'.brand__name .line1', brandLine2:'.brand__name .line2', heroTitle:'#heroTitle', heroLead:'#heroLead', hours:['#hours','#hoursChip'], address:'#addr', parking:'#parking', mapLinkText:'#mapLink', footerBannerText:'#footerBannerText' };
       for(const k in bindMap){
         const sel = bindMap[k];
         const targets = Array.isArray(sel)? sel.flatMap(s=> $$(s)) : $$(sel);
-        targets.forEach(el=>{
-          if(!el) return;
-          el.textContent = d[k] ?? '';
-        });
+        targets.forEach(el=>{ if(!el) return; el.textContent = d[k] ?? ''; });
       }
-
       const heroImg = byId('heroImage');
       if(heroImg) heroImg.src = d.heroImage || DEFAULT_DATA.heroImage;
-
       const mapFrame = byId('mapFrame');
       if(mapFrame) mapFrame.src = d.mapSrc || DEFAULT_DATA.mapSrc;
-
       const mapLink = byId('mapLink');
       if(mapLink) mapLink.href = d.mapLinkHref || DEFAULT_DATA.mapLinkHref || '#access';
-
       const reasonsWrap = $('#reasonsList'); reasonsWrap.innerHTML='';
       (d.reasons||[]).forEach(item=>{
         const card=document.createElement('article'); card.className='card';
         card.innerHTML=`<img src="${item.image||''}" alt=""><div class="pad"><h3>${item.title||''}</h3><p class="muted">${item.text||''}</p></div>`;
         reasonsWrap.appendChild(card);
       });
-
       const menuWrap = $('#menuList'); menuWrap.innerHTML='';
       (d.menu||[]).forEach(item=>{
         const badge=item.badge?`<span class="badge">${item.badge}</span>`:'';
         const card=document.createElement('article'); card.className='card'; card.style.width='280px';
-        card.innerHTML=`<img src="${item.image||''}" alt=""><div class="pad">
-          <div class="actions" style="justify-content:space-between;"><h3 style="margin:0;">${item.title||''}</h3>${badge}</div>
-          <p class="muted">${item.desc||''}</p><strong>${item.price||''}</strong></div>`;
+        card.innerHTML=`<img src="${item.image||''}" alt=""><div class="pad"><div class="actions" style="justify-content:space-between;"><h3 style="margin:0;">${item.title||''}</h3>${badge}</div><p class="muted">${item.desc||''}</p><strong>${item.price||''}</strong></div>`;
         menuWrap.appendChild(card);
       });
-
       const sortedNews = (d.news||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,5);
       const first3 = sortedNews.slice(0,3);
       const rest = sortedNews.slice(3);
@@ -559,7 +519,6 @@
       first3.forEach(n=> newsWrap.appendChild(newsCard(n)));
       const moreWrap = $('#newsListMore'); moreWrap.innerHTML='';
       rest.forEach(n=> moreWrap.appendChild(newsCard(n)));
-
       const sortedReviews = (d.reviews||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0)).slice(0,30);
       const rvFirst5 = sortedReviews.slice(0,5);
       const rvRest = sortedReviews.slice(5);
@@ -567,72 +526,47 @@
       rvFirst5.forEach(rv=> revWrap.appendChild(reviewCard(rv)));
       const revMore = $('#reviewsListMore'); revMore.innerHTML='';
       rvRest.forEach(rv=> revMore.appendChild(reviewCard(rv)));
-
       applySectionMuted(d.sectionsMuted || DEFAULT_DATA.sectionsMuted);
     }
 
     function loadFromPublicApiJSONP(){
       return new Promise((resolve)=>{
         if(!PUBLIC_API_URL){ resolve({ok:false, reason:'no_url'}); return; }
-
         const cb = "cb_site_" + Math.random().toString(36).slice(2);
         let settled = false;
-
         const cleanup = (scriptEl)=>{
           try{ if(scriptEl && scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl); }catch(e){}
           try{ window[cb] = function(){}; }catch(e){}
-          setTimeout(()=>{
-            try{ delete window[cb]; }catch(e){ window[cb]=null; }
-          }, 15000);
+          setTimeout(()=>{ try{ delete window[cb]; }catch(e){ window[cb]=null; } }, 15000);
         };
-
         window[cb] = (res)=>{
           if(settled) return;
           settled = true;
           try{
             if(res && res.ok && res.site && typeof res.site === "object"){
-              resolve({ ok:true, data: res.site, meta: res.meta || null });
-              return;
+              resolve({ ok:true, data: res.site, meta: res.meta || null }); return;
             }
             const payloadText = res && (res.data ?? res.json);
             if(res && res.ok && payloadText){
               const remoteObj = (typeof payloadText === "string") ? safeParse(payloadText) : payloadText;
               if(remoteObj && typeof remoteObj === "object"){
-                resolve({ ok:true, data: remoteObj, meta: res.meta || null });
-                return;
+                resolve({ ok:true, data: remoteObj, meta: res.meta || null }); return;
               }
             }
           }catch(e){}
           resolve({ ok:false, raw:res });
         };
-
         const s = document.createElement("script");
         s.async = true;
         s.src = `${PUBLIC_API_URL}?path=site&key=${encodeURIComponent(SITE_KEY)}&callback=${encodeURIComponent(cb)}&v=${Date.now()}`;
-        s.onerror = ()=>{
-          if(settled) return;
-          settled = true;
-          resolve({ok:false, reason:'script_error'});
-          cleanup(s);
-        };
+        s.onerror = ()=>{ if(settled) return; settled = true; resolve({ok:false, reason:'script_error'}); cleanup(s); };
         s.onload = ()=>{ cleanup(s); };
-
         document.head.appendChild(s);
-
-        setTimeout(()=>{
-          if(settled) return;
-          settled = true;
-          resolve({ok:false, reason:'timeout'});
-          cleanup(s);
-        }, 15000);
+        setTimeout(()=>{ if(settled) return; settled = true; resolve({ok:false, reason:'timeout'}); cleanup(s); }, 15000);
       });
     }
 
-    const vNum = (v)=>{
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    };
-
+    const vNum = (v)=>{ const n = Number(v); return Number.isFinite(n) ? n : 0; };
     function readNormalizedCache(){
       const site = loadLS(LS_SITE);
       const meta = loadLS(LS_META);
@@ -641,13 +575,11 @@
       const fresh = (Date.now() - savedAt) <= CACHE_TTL_MS;
       return { site, meta, savedAt, fresh };
     }
-
     function writeNormalizedCache(site, meta){
       saveLS(LS_SITE, site);
       saveLS(LS_META, meta || {});
       try{ localStorage.setItem(LS_SAVED_AT, String(Date.now())); }catch(e){}
     }
-
     function clearNormalizedCache(){
       try{
         localStorage.removeItem(LS_SITE);
@@ -656,7 +588,6 @@
         localStorage.removeItem(LS_LAST_CHECK);
       }catch(e){}
     }
-
     function renderDebug(meta, source){
       if(!DEBUG) return;
       let el = document.getElementById("debug-version");
@@ -668,7 +599,6 @@
       }
       el.textContent = `v=${meta?.version ?? "?"} (${source}) ${meta?.updated_at ?? ""}`;
     }
-
     (function injectFormGridCss(){
       const style = document.createElement('style');
       style.textContent = `
@@ -696,14 +626,9 @@
     }
 
     // ============================================================
-    // フォーム送信（CORS回避：hidden iframe + postMessage）
+    // フォーム送信：楽観的UI (Optimistic UI)
     // ============================================================
     const GAS_IFRAME_NAME = "gasFormTarget";
-
-    function newClientRequestId_(){
-      try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
-      return "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
-    }
 
     function buildHiddenInput_(form, name, value){
       let inp = form.querySelector(`input[type="hidden"][name="${name}"]`);
@@ -717,64 +642,12 @@
       return inp;
     }
 
-    function setFormBusy_(form, submitBtn, on, label){
-      if(submitBtn){
-        submitBtn.disabled = !!on;
-        if(label && on){
-          submitBtn.dataset._origText = submitBtn.textContent;
-          submitBtn.textContent = label;
-        }
-        if(!on && submitBtn.dataset._origText){
-          submitBtn.textContent = submitBtn.dataset._origText;
-          delete submitBtn.dataset._origText;
-        }
-      }
-      form.classList.toggle("isBusy", !!on);
-    }
-
-    function waitForGASResult_(requestId, timeoutMs){
-      return new Promise((resolve, reject)=>{
-        const t = setTimeout(()=>{
-          cleanup();
-          reject(new Error("timeout"));
-        }, Math.max(3000, Number(timeoutMs || 15000)));
-
-        function onMessage(ev){
-          // GAS 側は parent.postMessage(JSON.stringify(payload), origin) の想定
-          let data = ev && ev.data;
-          if(!data) return;
-
-          // 文字列JSONの想定（GAS実装）
-          if(typeof data === "string"){
-            try{ data = JSON.parse(data); }catch(e){ return; }
-          }
-          if(!data || typeof data !== "object") return;
-
-          // request_id が一致するものだけ採用
-          const rid = String(data.request_id || "");
-          if(rid !== String(requestId)) return;
-
-          cleanup();
-          resolve(data);
-        }
-
-        function cleanup(){
-          clearTimeout(t);
-          window.removeEventListener("message", onMessage);
-        }
-
-        window.addEventListener("message", onMessage);
-      });
-    }
-
-    // CORRECTED: 'async async' to 'async'
-    async function submitToGASViaIframe_(form, action, extraFields){
-      // 1) 送信前に hidden を仕込む
-      const requestId = newClientRequestId_();
+    // This function no longer waits for a response. It just prepares and submits the form.
+    function submitToGASViaIframe_(form, action, extraFields){
       buildHiddenInput_(form, "action", action);
       buildHiddenInput_(form, "key", SITE_KEY);
       buildHiddenInput_(form, "origin", location.origin);
-      buildHiddenInput_(form, "request_id", requestId);
+      buildHiddenInput_(form, "request_id", "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8));
       buildHiddenInput_(form, "page_url", location.href);
       buildHiddenInput_(form, "user_agent", navigator.userAgent);
 
@@ -784,81 +657,11 @@
         });
       }
 
-      // 2) form の基本設定
       form.method = "POST";
       form.action = PUBLIC_API_URL;
       form.target = GAS_IFRAME_NAME;
-
-      // 3) 送信 → postMessage を待つ
-      const wait = waitForGASResult_(requestId, 20000);
       form.submit();
-      return await wait;
     }
-
-    // REWRITTEN AND CORRECTED
-    async function submitReserveNoCors(form) {
-      if (!PUBLIC_API_URL) {
-        alert("PUBLIC_API_URL が未設定です。");
-        return;
-      }
-      if (!(form instanceof HTMLFormElement)) return;
-
-      const btn = form.querySelector('button[type="submit"]');
-
-      const emailInput = form.querySelector('[name="email"]');
-      if (!emailInput?.value.trim()) {
-          alert("メールを入力してください。");
-          emailInput?.focus();
-          return;
-      }
-
-      const payload = {
-        name: String(form.querySelector('[name="name"]')?.value || "").trim(),
-        email: String(emailInput.value).trim(),
-        tel: String(form.querySelector('[name="tel"]')?.value || "").trim(),
-        datetime: dtLocalToString(form.querySelector('[name="datetime"]')?.value),
-        people: String(form.querySelector('[name="people"]')?.value || "").trim(),
-        msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
-      };
-
-      setFormBusy_(form, btn, true, "送信中…");
-      try {
-        return await submitToGASViaIframe_(form, "reserve", payload);
-      } finally {
-        setFormBusy_(form, btn, false);
-      }
-    }
-
-    // REWRITTEN AND CORRECTED
-    async function submitFeedbackNoCors(form) {
-        if (!PUBLIC_API_URL) {
-          alert("PUBLIC_API_URL が未設定です。");
-          return;
-        }
-        if (!(form instanceof HTMLFormElement)) return;
-
-        const btn = form.querySelector('button[type="submit"]');
-
-        const msgInput = form.querySelector('[name="msg"]');
-        if (!msgInput?.value.trim()) {
-            alert("ご感想などを入力してください。");
-            msgInput?.focus();
-            return;
-        }
-
-        const payload = {
-            nickname: String(form.querySelector('[name="nickname"]')?.value || "").trim(),
-            msg: String(msgInput.value).trim(),
-        };
-
-        setFormBusy_(form, btn, true, "送信中…");
-        try {
-            return await submitToGASViaIframe_(form, "feedback", payload);
-        } finally {
-            setFormBusy_(form, btn, false);
-        }
-    }
-
 
     (async function init(){
       setHeaderHeightVar();
@@ -882,14 +685,11 @@
 
       if (shouldFetch) {
         try { localStorage.setItem(LS_LAST_CHECK, String(Date.now())); } catch (e) {}
-
         const remote = await loadFromPublicApiJSONP();
-
         if (remote && remote.ok && remote.data) {
           const serverMeta = remote.meta || {};
           const serverVer = vNum(serverMeta.version);
           const cacheVer  = vNum(norm?.meta?.version);
-
           if (FORCE || !norm || serverVer > cacheVer) {
             applyData(normalizeForView(remote.data));
             renderDebug(serverMeta, "server");
@@ -936,48 +736,71 @@
         rvToggle.textContent = rvOpen ? '過去の声を閉じる' : '過去の声も見る';
       });
 
-      // Event listener for the reservation form
+      // --- OPTIMISTIC FORM HANDLERS ---
+
       const reserveForm = byId('reserveForm');
-      reserveForm?.addEventListener('submit', async (e)=>{
+      reserveForm?.addEventListener('submit', (e)=>{
         e.preventDefault();
         const btn = byId('reserveSubmitBtn');
         if(btn.disabled) return;
-
-        try{
-          const result = await submitReserveNoCors(reserveForm);
-          // Check for a response, as a timeout or other error might return undefined
-          if (result && result.ok) {
-              alert(USER_OK_ALERT + (result.request_id ? `\n\n受付管理ID：${result.request_id}` : ""));
-              reserveForm.reset();
-          } else {
-              throw new Error(result?.error || 'Unknown error during submission.');
-          }
-        }catch(err){
-          alert(`送信に失敗しました。\n入力内容と通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
+        const emailInput = reserveForm.querySelector('[name="email"]');
+        if (!emailInput?.value.trim()) {
+            alert("メールを入力してください。");
+            emailInput?.focus();
+            return;
+        }
+        try {
+          submitToGASViaIframe_(reserveForm, "reserve", {
+              name: String(reserveForm.querySelector('[name="name"]')?.value || "").trim(),
+              email: String(emailInput.value).trim(),
+              tel: String(reserveForm.querySelector('[name="tel"]')?.value || "").trim(),
+              datetime: dtLocalToString(reserveForm.querySelector('[name="datetime"]')?.value),
+              people: String(reserveForm.querySelector('[name="people"]')?.value || "").trim(),
+              msg: String(reserveForm.querySelector('[name="msg"]')?.value || "").trim(),
+          });
+          btn.disabled = true;
+          const origText = btn.textContent;
+          btn.textContent = "送信中…";
+          setTimeout(() => {
+            alert(USER_OK_ALERT);
+            reserveForm.reset();
+            if(btn) { btn.disabled = false; btn.textContent = origText; }
+          }, 800);
+        } catch (err) {
+            alert(`送信処理のセットアップ中にエラーが発生しました。ページを再読み込みしてお試しください。\n\n詳細: ${String(err?.message || err)}`);
+            if(btn) { btn.disabled = false; }
         }
       });
 
-      // Event listener for the feedback form
       const feedbackForm = byId('feedbackForm');
-      feedbackForm?.addEventListener('submit', async (ev)=>{
+      feedbackForm?.addEventListener('submit', (ev)=>{
         ev.preventDefault();
         const btn = byId('feedbackSubmitBtn');
         if(btn.disabled) return;
-
-        try{
-          const result = await submitFeedbackNoCors(feedbackForm);
-          if(result && result.ok){
-            alert("ご感想・ご意見を受け付けました。店主が拝見します。");
-            feedbackForm.reset();
-          } else {
-            throw new Error(result?.error || 'Unknown error during submission.');
-          }
-        }catch(err){
-          alert(`送信に失敗しました。\n入力内容と通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
-          console.error(err);
+        const msgInput = feedbackForm.querySelector('[name="msg"]');
+        if (!msgInput?.value.trim()) {
+            alert("ご感想などを入力してください。");
+            msgInput?.focus();
+            return;
+        }
+        try {
+            submitToGASViaIframe_(feedbackForm, "feedback", {
+                nickname: String(feedbackForm.querySelector('[name="nickname"]')?.value || "").trim(),
+                msg: String(msgInput.value).trim(),
+            });
+            btn.disabled = true;
+            const origText = btn.textContent;
+            btn.textContent = "送信中…";
+            setTimeout(() => {
+                alert("ご感想・ご意見を受け付けました。店主が拝見します。");
+                feedbackForm.reset();
+                if(btn) { btn.disabled = false; btn.textContent = origText; }
+            }, 800);
+        } catch(err){
+            alert(`送信処理のセットアップ中にエラーが発生しました。ページを再読み込みしてお試しください。\n\n詳細: ${String(err?.message || err)}`);
+            if(btn) { btn.disabled = false; }
         }
       });
-
     })();
 
     (function(){
@@ -986,303 +809,3 @@
         if(supports){ document.body.classList.add('theme-liquid'); }
       }catch(e){}
     })();
-  </script>
-
-  <!-- ===== ポイント/クーポン（モック） ===== -->
-  <style>
-    .loy-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.38); display:none; z-index:80; }
-    .loy-modal{ position:fixed; inset:auto 0 0 0; margin:auto; width:min(560px, calc(100% - 24px));
-      background:#fff; border:1px solid #e8eaef; border-radius:16px; box-shadow:0 18px 60px rgba(0,0,0,.18); padding:16px; z-index:81; display:none; }
-    .loy-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .loy-tabs{ display:flex; gap:8px; margin:8px 0 12px; }
-    .loy-tab{ padding:.45rem .8rem; border:1px solid #e8eaef; border-radius:999px; cursor:pointer; }
-    .loy-tab[aria-selected="true"]{ background:var(--badge-bg); color:var(--badge-fg); border-color: color-mix(in srgb, var(--brand) 30%, #e8eaef); }
-    .loy-pane{ display:none; }
-    .loy-pane.active{ display:block; }
-    .loy-row{ display:flex; gap:8px; align-items:center; }
-    .loy-input{ flex:1; padding:.7rem .9rem; border:1px solid #e8eaef; border-radius:10px; }
-    .loy-btn{ padding:.7rem 1rem; border-radius:999px; border:1px solid #e8eaef; background:#fff; cursor:pointer; }
-    .loy-btn.primary{ background:var(--brand); color:#fff; border-color:transparent; }
-    .loy-progress{ height:10px; background:#f2f5f9; border-radius:999px; overflow:hidden; }
-    .loy-progress > span{ display:block; height:100%; width:0%; background:var(--brand); }
-  
-
-/* ============================================================
-   ★追加：予約フォーム内タブ（控えめ）
-============================================================ */
-.formTabs{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
-.tabBtn{
-  border:1px solid var(--border);
-  background:#fff;
-  padding:.55rem .9rem;
-  border-radius:999px;
-  cursor:pointer;
-  font-weight:900;
-  color:var(--text-dim);
-}
-.tabBtn.active{
-  background:var(--muted);
-  color:var(--text);
-  border-color:var(--border);
-}
-.formPanel{ margin-top:8px; }
-/* honeypot */
-.hpField{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
-    /* --- feedback/reserve honeypot: must be invisible but remain in DOM --- */
-    .honeypot{
-      position:absolute !important;
-      left:-9999px !important;
-      top:auto !important;
-      width:1px !important;
-      height:1px !important;
-      overflow:hidden !important;
-      opacity:0 !important;
-      pointer-events:none !important;
-    }
-    .form-status:empty{ display:none; }
-
-    /* 旧文言の復活防止（必要なら後で復活できるように、表示だけ抑止） */
-    #reserveAltNote{ display:none !important; }
-
-
-
-    /* ===== NEW: Stylish Reserve Form UI (v6) ===== */
-    #reserve > .container > .card {
-      background-color: transparent;
-      border: none;
-      box-shadow: none;
-      padding: 0;
-    }
-
-    .reserveTabBar {
-      display: flex;
-      justify-content: center;
-      padding: 0;
-      border-bottom: none;
-      margin-bottom: 20px;
-    }
-
-    .reserveTab {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text-dim);
-      font-weight: 700;
-      padding: 10px 20px;
-      cursor: pointer;
-      position: relative;
-      transition: all 0.2s ease-in-out;
-    }
-    
-    .reserveTab:first-of-type {
-      border-radius: 999px 0 0 999px;
-    }
-    .reserveTab:last-of-type {
-      border-radius: 0 999px 999px 0;
-      border-left: none;
-    }
-
-    .reserveTab:hover:not(.is-active) {
-      background: var(--muted);
-      color: var(--text);
-    }
-    
-    .reserveTab.is-active {
-      background: var(--brand);
-      color: #fff;
-      border-color: var(--brand);
-      box-shadow: 0 4px 15px color-mix(in srgb, var(--brand) 30%, transparent);
-      z-index: 2;
-    }
-
-    .reservePanels {
-      background-color: #fff;
-      padding: clamp(20px, 4vw, 32px);
-      border-radius: var(--radius);
-      margin-top: 0;
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-    }
-
-    #reserve label {
-      font-weight: 700;
-      font-size: .9rem;
-      color: var(--text-dim);
-    }
-
-    #reserve .input, #reserve textarea, #reserve select {
-      background-color: var(--muted);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 1rem 1.1rem;
-      margin-top: 4px;
-    }
-    
-    #reserve .input:focus, #reserve textarea:focus, #reserve select:focus {
-      background-color: #fff;
-      border-color: var(--brand);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
-    }
-
-    .reservePanel .btn.primary {
-      background: var(--brand);
-      font-weight: 700;
-      padding: 14px 24px;
-      border: none;
-      box-shadow: 0 4px 15px color-mix(in srgb, var(--brand) 30%, transparent);
-      transform: translateY(0);
-      transition: all 0.2s ease-out;
-    }
-    
-    .reservePanel .btn.primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px color-mix(in srgb, var(--brand) 40%, transparent);
-      filter: brightness(1.05);
-    }
-
-    .reservePanel[hidden]{ display:none !important; }
-    
-    .reservePanel .btn.primary{
-      background:var(--brand);
-      color:#fff;
-      border:1px solid transparent;
-      box-shadow:0 10px 22px rgba(0,0,0,.12);
-      font-weight:900;
-      padding:12px 18px;
-    }
-    .reservePanel .btn.primary:hover{ filter:brightness(.98); }
-    
-    .form-status{ font-size:.95rem; color:var(--dim); }
-
-</style>
-
-  <div class="loy-backdrop" id="loyBackdrop"></div>
-  <div class="loy-modal" id="loyModal" role="dialog" aria-modal="true" aria-labelledby="loyTitle">
-    <div class="loy-head">
-      <strong id="loyTitle">ポイント & クーポン</strong>
-      <button id="loyClose" class="loy-btn" aria-label="閉じる">×</button>
-    </div>
-    <div class="loy-tabs" role="tablist">
-      <button class="loy-tab" role="tab" id="tabPoint" aria-selected="true">ポイント</button>
-      <button class="loy-tab" role="tab" id="tabCoupon" aria-selected="false">クーポン</button>
-      <button class="loy-tab" role="tab" id="tabHowto" aria-selected="false">使い方</button>
-    </div>
-
-    <div id="panePoint" class="loy-pane active" role="tabpanel" aria-labelledby="tabPoint">
-      <div class="loy-row" style="margin-bottom:8px;">
-        <input class="loy-input" placeholder="電話番号またはメールを入力して登録">
-        <button class="loy-btn">登録/更新</button>
-      </div>
-      <div class="loy-row" style="margin-bottom:8px;">
-        <input class="loy-input" placeholder="店内QRで自動入力（今日の合言葉）">
-        <button class="loy-btn primary">チェックインする（1pt）</button>
-      </div>
-      <div class="loy-progress" title="10ptでクーポン発行"><span style="width:0%"></span></div>
-      <p class="muted" style="margin:.5rem 0 0;">ポイント: 0 / 10</p>
-    </div>
-
-    <div id="paneCoupon" class="loy-pane" role="tabpanel" aria-labelledby="tabCoupon">
-      <div><p class="muted">保有中のクーポンはありません。</p></div>
-    </div>
-
-    <div id="paneHowto" class="loy-pane" role="tabpanel" aria-labelledby="tabHowto">
-      <ol style="margin-left:1rem;">
-        <li>初回は上の欄に電話番号orメールを入れて<strong>登録</strong></li>
-        <li>来店時はレジ横の<strong>QR</strong>を読み取り、上の<strong>チェックイン</strong>を押す</li>
-        <li><strong>10pt</strong>で自動的にクーポンが発行されます</li>
-      </ol>
-      <small class="muted">※ 同日の複数チェックインはできません。</small>
-    </div>
-  </div>
-
-  <script>
-    
-    // Loyalty modal event listeners
-    $('#openLoyalty')?.addEventListener('click', ()=>{
-      $('#loyBackdrop').style.display='block';
-      $('#loyModal').style.display='block';
-    });
-
-    function closeLoy(){
-      $('#loyBackdrop').style.display='none';
-      $('#loyModal').style.display='none';
-    }
-    $('#loyClose')?.addEventListener('click', closeLoy);
-    $('#loyBackdrop')?.addEventListener('click', closeLoy);
-
-    // Loyalty modal tab logic
-    const loyTabs = [['tabPoint','panePoint'],['tabCoupon','paneCoupon'],['tabHowto','paneHowto']];
-    loyTabs.forEach(([t,p])=>{
-      $('#'+t)?.addEventListener('click', ()=>{
-        loyTabs.forEach(([tt,pp])=>{
-          $('#'+tt).setAttribute('aria-selected', tt===t ? 'true' : 'false');
-          $('#'+pp).classList.toggle('active', pp===p);
-        });
-      });
-    });
-  
-  // Reserve / Feedback Panel Tab Logic
-  (function(){
-    const tabReserve = document.getElementById('tabReserve');
-    const tabFeedback = document.getElementById('tabFeedback');
-    const panelReserve = document.getElementById('panelReserve');
-    const panelFeedback = document.getElementById('panelFeedback');
-    const panelsWrap = document.querySelector('#reserve .reservePanels');
-    if(!tabReserve || !tabFeedback || !panelReserve || !panelFeedback) return;
-
-    function setPanelsMinHeight(){
-      if(!panelsWrap) return;
-      // 一瞬だけ両方を表示して高さを測る（位置ズレ防止）
-      const prevReserveHidden = panelReserve.hidden;
-      const prevFeedbackHidden = panelFeedback.hidden;
-
-      panelReserve.hidden = false;
-      panelFeedback.hidden = false;
-
-      // scrollHeight を使う（hidden=false なので確実に取れる）
-      const maxH = Math.max(panelReserve.scrollHeight, panelFeedback.scrollHeight);
-
-      // 元に戻す
-      panelReserve.hidden = prevReserveHidden;
-      panelFeedback.hidden = prevFeedbackHidden;
-
-      panelsWrap.style.minHeight = (maxH || 0) + 'px';
-    }
-
-    function activate(which, keepScroll=true){
-      const isReserve = which === 'reserve';
-      const y = window.scrollY;
-
-      tabReserve.classList.toggle('is-active', isReserve);
-      tabFeedback.classList.toggle('is-active', !isReserve);
-
-      panelReserve.hidden = !isReserve;
-      panelFeedback.hidden = isReserve;
-
-      // 高さを固定して、クリック時にページが上下に動くのを防ぐ
-      setPanelsMinHeight();
-
-      if(keepScroll){
-        requestAnimationFrame(()=> window.scrollTo({ top: y, left: 0, behavior: 'auto' }));
-      }
-    }
-
-    tabReserve.addEventListener('click', (e)=>{ e.preventDefault(); activate('reserve'); });
-    tabFeedback.addEventListener('click', (e)=>{ e.preventDefault(); activate('feedback'); });
-
-    window.addEventListener('resize', ()=> setPanelsMinHeight());
-
-    // 初期（先に高さ確定→表示）
-    panelReserve.hidden = false;
-    panelFeedback.hidden = true;
-    setPanelsMinHeight();
-    activate('reserve', false);
-  })();
-
-
-</script>
-
-  <iframe id="gasFormTarget" name="gasFormTarget" style="display:none;width:0;height:0;border:0;"></iframe>
-
-</body>
-</html>
