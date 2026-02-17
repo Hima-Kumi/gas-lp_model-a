@@ -366,7 +366,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbwvsnKgzHALxXs6TX4oeTvs-buAtiPitfNKkLzlhiQReD7CIgHa3Gcl_wYJAnf90CRu/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz82m1GlTGz-NZnbyFCXBmkQ6LgaQnXyO4D370Vl8JhvD8yjRy9_A1kws5VXSy9cqhC/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -806,8 +806,8 @@ async function submitToGASViaIframe_(form, action, extraFields){
 
 async function submitReserveNoCors(formOrPayload){
   // 旧関数名を維持しつつ、中身を iframe 方式に置換（事故防止）
-  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : document.getElementById('reserveForm');
-  const btn  = document.getElementById('reserveSubmitBtn');
+  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : $H.$('#reserveForm');
+  const btn  = $H.$('#reserveSubmitBtn');
   if(!form) throw new Error("reserveForm not found");
 
   // 簡易スパム対策：ハニーポットが埋まっていたら無視
@@ -839,8 +839,8 @@ async function submitReserveNoCors(formOrPayload){
 
     async function submitFeedbackNoCors(formOrPayload){
   // 旧関数名を維持しつつ、中身を iframe 方式に置換（事故防止）
-  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : document.getElementById('feedbackForm');
-  const btn  = document.getElementById('feedbackSubmitBtn');
+  const form = (formOrPayload instanceof HTMLFormElement) ? formOrPayload : $H.$('#feedbackForm');
+  const btn  = $H.$('#feedbackSubmitBtn');
   if(!form) throw new Error("feedbackForm not found");
 
   // 簡易スパム対策：ハニーポットが埋まっていたら無視
@@ -851,9 +851,10 @@ async function submitReserveNoCors(formOrPayload){
 
   const payload = (formOrPayload instanceof HTMLFormElement)
     ? {
-        nickname: (form.nickname?.value || "").trim(),
-        message:  (form.msg?.value || "").trim()
-    }
+        name: String(form.querySelector('[name="name"]')?.value || "").trim(),
+        email: String(form.querySelector('[name="email"]')?.value || "").trim(),
+        msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
+      }
     : (formOrPayload || {});
 
   setFormBusy_(form, btn, true, "送信中…");
