@@ -165,6 +165,26 @@
 </head>
 
 <body>
+
+<script>
+(function(){
+  const g=window;
+  if(typeof g.$H!=="function"){
+    g.$H=function(sel,root){
+      const r=root||document;
+      if(sel==null) return null;
+      const s=String(sel);
+      if(/^[A-Za-z][\w\-:.]*$/.test(s)){
+        return document.getElementById(s)||r.querySelector('#'+CSS.escape(s));
+      }
+      return r.querySelector(s);
+    };
+  }
+  if(typeof g.$H.$!=="function") g.$H.$=(sel,root)=>(root||document).querySelector(sel);
+  if(typeof g.$H.$$!=="function") g.$H.$$=(sel,root)=>Array.from((root||document).querySelectorAll(sel));
+})();
+</script>
+
   <header class="site-header" id="siteHeader">
     <div class="container nav">
       <div class="brand" id="brandName">
@@ -366,7 +386,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz82m1GlTGz-NZnbyFCXBmkQ6LgaQnXyO4D370Vl8JhvD8yjRy9_A1kws5VXSy9cqhC/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbwFkzIhmAzNfY97c_h0eCJD9INhBT0tT0vui7cU0SJwOOkM52Dv_2BLxv3LRvvtdx0o/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -851,9 +871,8 @@ async function submitReserveNoCors(formOrPayload){
 
   const payload = (formOrPayload instanceof HTMLFormElement)
     ? {
-        name: String(form.querySelector('[name="name"]')?.value || "").trim(),
-        email: String(form.querySelector('[name="email"]')?.value || "").trim(),
-        msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
+        nickname: String((form.querySelector('[name="nickname"]')?.value) || form.querySelector('[name="name"]')?.value || '').trim(),
+        message: String((form.querySelector('[name="message"]')?.value) || form.querySelector('[name="msg"]')?.value || '').trim(),
       }
     : (formOrPayload || {});
 
