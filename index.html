@@ -366,7 +366,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz2aNHYHkYXLOp2i0bFfrtJaZze5dm1BnAhiQptTm_QF4Ty9kT2FjKY5jzOFHn_YWhM/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbw8ldWeB-hWqKQYtktHALrgwAJcmxq8HtLBDdHsV4zeb1qvOvrMXMc9dC0wNYZagSZD/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -936,46 +936,52 @@
         rvToggle.textContent = rvOpen ? '過去の声を閉じる' : '過去の声も見る';
       });
 
-      // Event listener for the reservation form
+      // Event listener for the reservation form (Optimistic UI)
       const reserveForm = byId('reserveForm');
-      reserveForm?.addEventListener('submit', async (e)=>{
+      reserveForm?.addEventListener('submit', (e)=>{
         e.preventDefault();
-        const btn = byId('reserveSubmitBtn');
-        if(btn.disabled) return;
-
-        try{
-          const result = await submitReserveNoCors(reserveForm);
-          // Check for a response, as a timeout or other error might return undefined
-          if (result && result.ok) {
-              alert(USER_OK_ALERT + (result.request_id ? `\n\n受付管理ID：${result.request_id}` : ""));
-              reserveForm.reset();
-          } else {
-              throw new Error(result?.error || 'Unknown error during submission.');
-          }
-        }catch(err){
-          alert(`送信に失敗しました。\n入力内容と通信状況を確認し、時間をおいて再度お試しください。\n\n（詳細）${String(err?.message || err)}`);
+        
+        // Basic validation before optimistic submission
+        const emailInput = reserveForm.querySelector('[name="email"]');
+        if (!emailInput?.value.trim()) {
+            alert("メールを入力してください。");
+            emailInput?.focus();
+            return;
         }
+        
+        // Fire-and-forget the submission. It will handle its own busy state.
+        submitReserveNoCors(reserveForm).catch(err => {
+            // For developers: log potential background failures. The user won't see this.
+            console.error('Reservation submission failed in the background:', err);
+        });
+        
+        // Immediately give user feedback and reset form
+        alert(USER_OK_ALERT);
+        reserveForm.reset();
       });
 
-      // Event listener for the feedback form
+      // Event listener for the feedback form (Optimistic UI)
       const feedbackForm = byId('feedbackForm');
-      feedbackForm?.addEventListener('submit', async (ev)=>{
+      feedbackForm?.addEventListener('submit', (ev)=>{
         ev.preventDefault();
-        const btn = byId('feedbackSubmitBtn');
-        if(btn.disabled) return;
 
-        try{
-          const result = await submitFeedbackNoCors(feedbackForm);
-          if(result && result.ok){
-            alert("ご感想・ご意見を受け付けました。店主が拝見します。");
-            feedbackForm.reset();
-          } else {
-            throw new Error(result?.error || 'Unknown error during submission.');
-          }
-        }catch(err){
-          alert("送信に失敗しました。時間をおいて再度お試しください。");
-          console.error(err);
+        // Basic validation before optimistic submission
+        const msgInput = feedbackForm.querySelector('[name="msg"]');
+        if (!msgInput?.value.trim()) {
+            alert("ご感想などを入力してください。");
+            msgInput?.focus();
+            return;
         }
+
+        // Fire-and-forget the submission.
+        submitFeedbackNoCors(feedbackForm).catch(err => {
+          // For developers: log potential background failures.
+          console.error('Feedback submission failed in the background:', err);
+        });
+
+        // Immediately give user feedback and reset form
+        alert("ご感想・ご意見を受け付けました。店主が拝見します。");
+        feedbackForm.reset();
       });
 
     })();
