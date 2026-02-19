@@ -790,6 +790,9 @@
         const payload = {
             nickname: String(form.querySelector('[name="nickname"]')?.value || "").trim(),
             msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
+            occurred_at: new Date().toISOString(),
+            type: 'feedback',
+            status: 'received',
         };
         
         setFormBusy_(form, btn, true, "送信中…");
