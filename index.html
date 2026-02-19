@@ -696,7 +696,7 @@
     }
 
     // ============================================================
-    // フォーム送信（CORS回避：hidden iframe + postMessage）
+    // フォーム送信（CORS回避：hidden iframe）- 楽観的UI版
     // ============================================================
     const GAS_IFRAME_NAME = "gasFormTarget";
 
@@ -732,44 +732,9 @@
       form.classList.toggle("isBusy", !!on);
     }
 
-    function waitForGASResult_(requestId, timeoutMs){
-      return new Promise((resolve, reject)=>{
-        const t = setTimeout(()=>{
-          cleanup();
-          reject(new Error("timeout"));
-        }, Math.max(3000, Number(timeoutMs || 15000)));
-
-        function onMessage(ev){
-          // GAS 側は parent.postMessage(JSON.stringify(payload), origin) の想定
-          let data = ev && ev.data;
-          if(!data) return;
-
-          // 文字列JSONの想定（GAS実装）
-          if(typeof data === "string"){
-            try{ data = JSON.parse(data); }catch(e){ return; }
-          }
-          if(!data || typeof data !== "object") return;
-
-          // request_id が一致するものだけ採用
-          const rid = String(data.request_id || "");
-          if(rid !== String(requestId)) return;
-
-          cleanup();
-          resolve(data);
-        }
-
-        function cleanup(){
-          clearTimeout(t);
-          window.removeEventListener("message", onMessage);
-        }
-
-        window.addEventListener("message", onMessage);
-      });
-    }
-
-    // CORRECTED: 'async async' to 'async'
-    async function submitToGASViaIframe_(form, action, extraFields){
-      // 1) 送信前に hidden を仕込む
+    // NEW: Fire-and-forget submission function. Does not wait for a response.
+    function submitToGASViaIframe_fireAndForget_(form, action, extraFields){
+      // 1) Set up hidden inputs
       const requestId = newClientRequestId_();
       buildHiddenInput_(form, "action", action);
       buildHiddenInput_(form, "key", SITE_KEY);
@@ -784,79 +749,51 @@
         });
       }
 
-      // 2) form の基本設定
+      // 2) Set form properties
       form.method = "POST";
       form.action = PUBLIC_API_URL;
       form.target = GAS_IFRAME_NAME;
 
-      // 3) 送信 → postMessage を待つ
-      const wait = waitForGASResult_(requestId, 20000);
+      // 3) Submit without waiting for a response
       form.submit();
-      return await wait;
     }
 
-    // REWRITTEN AND CORRECTED
-    async function submitReserveNoCors(form) {
-      if (!PUBLIC_API_URL) {
-        alert("PUBLIC_API_URL が未設定です。");
-        return;
-      }
-      if (!(form instanceof HTMLFormElement)) return;
-
-      const btn = form.querySelector('button[type="submit"]');
-
-      const emailInput = form.querySelector('[name="email"]');
-      if (!emailInput?.value.trim()) {
-          alert("メールを入力してください。");
-          emailInput?.focus();
-          return;
-      }
-
-      const payload = {
-        name: String(form.querySelector('[name="name"]')?.value || "").trim(),
-        email: String(emailInput.value).trim(),
-        tel: String(form.querySelector('[name="tel"]')?.value || "").trim(),
-        datetime: dtLocalToString(form.querySelector('[name="datetime"]')?.value),
-        people: String(form.querySelector('[name="people"]')?.value || "").trim(),
-        msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
-      };
-
-      setFormBusy_(form, btn, true, "送信中…");
-      try {
-        return await submitToGASViaIframe_(form, "reserve", payload);
-      } finally {
-        setFormBusy_(form, btn, false);
-      }
-    }
-
-    // REWRITTEN AND CORRECTED
-    async function submitFeedbackNoCors(form) {
-        if (!PUBLIC_API_URL) {
-          alert("PUBLIC_API_URL が未設定です。");
-          return;
-        }
-        if (!(form instanceof HTMLFormElement)) return;
-
+    // NEW: Optimistic submission handler for the reservation form
+    function submitReserveOptimistic(form) {
+        if (!PUBLIC_API_URL || !(form instanceof HTMLFormElement)) return;
         const btn = form.querySelector('button[type="submit"]');
 
-        const msgInput = form.querySelector('[name="msg"]');
-        if (!msgInput?.value.trim()) {
-            alert("ご感想などを入力してください。");
-            msgInput?.focus();
-            return;
-        }
-
         const payload = {
-            nickname: String(form.querySelector('[name="nickname"]')?.value || "").trim(),
-            msg: String(msgInput.value).trim(),
+            name: String(form.querySelector('[name="name"]')?.value || "").trim(),
+            email: String(form.querySelector('[name="email"]')?.value || "").trim(),
+            tel: String(form.querySelector('[name="tel"]')?.value || "").trim(),
+            datetime: dtLocalToString(form.querySelector('[name="datetime"]')?.value),
+            people: String(form.querySelector('[name="people"]')?.value || "").trim(),
+            msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
         };
 
         setFormBusy_(form, btn, true, "送信中…");
-        try {
-            return await submitToGASViaIframe_(form, "feedback", payload);
-        } finally {
-            setFormBusy_(form, btn, false);
-        }
+        submitToGASViaIframe_fireAndForget_(form, "reserve", payload);
+
+        // Re-enable the button after a short delay
+        setTimeout(() => { setFormBusy_(form, btn, false); }, 1000);
+    }
+
+    // NEW: Optimistic submission handler for the feedback form
+    function submitFeedbackOptimistic(form) {
+        if (!PUBLIC_API_URL || !(form instanceof HTMLFormElement)) return;
+        const btn = form.querySelector('button[type="submit"]');
+
+        const payload = {
+            nickname: String(form.querySelector('[name="nickname"]')?.value || "").trim(),
+            msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
+        };
+        
+        setFormBusy_(form, btn, true, "送信中…");
+        submitToGASViaIframe_fireAndForget_(form, "feedback", payload);
+        
+        // Re-enable the button after a short delay
+        setTimeout(() => { setFormBusy_(form, btn, false); }, 1000);
     }
 
 
@@ -949,13 +886,8 @@
             return;
         }
         
-        // Fire-and-forget the submission. It will handle its own busy state.
-        submitReserveNoCors(reserveForm).catch(err => {
-            // For developers: log potential background failures. The user won't see this.
-            console.error('Reservation submission failed in the background:', err);
-        });
+        submitReserveOptimistic(reserveForm);
         
-        // Immediately give user feedback and reset form
         alert(USER_OK_ALERT);
         reserveForm.reset();
       });
@@ -973,13 +905,8 @@
             return;
         }
 
-        // Fire-and-forget the submission.
-        submitFeedbackNoCors(feedbackForm).catch(err => {
-          // For developers: log potential background failures.
-          console.error('Feedback submission failed in the background:', err);
-        });
+        submitFeedbackOptimistic(feedbackForm);
 
-        // Immediately give user feedback and reset form
         alert("ご感想・ご意見を受け付けました。店主が拝見します。");
         feedbackForm.reset();
       });
