@@ -50,12 +50,12 @@
     .brand__name .line1{ font-size:.92rem; color:var(--text-dim); }
     .brand__name .line2{ font-size:1.08rem; font-weight:800; color:var(--text); }
     .nav-right{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-    .nav-link{ padding:8px 10px; border-radius:10px; }
+    .nav-link{ position: relative; padding:8px 10px; border-radius:10px; }
     .nav-link:hover{ background:var(--muted); }
     .nav-right .btn-primary{ padding:.55rem .85rem; border-radius:999px; font-weight:700; font-size:.95rem; }
     @media (max-width:900px){
-      .nav-right{ gap:4px; }
-      .nav-link{ padding:6px 8px; font-size:.95rem; }
+      .nav-right{ gap:2px; }
+      .nav-link{ padding:6px 6px; font-size:.95rem; }
       .nav-right .btn-primary{ padding:.5rem .8rem; font-size:.95rem; }
     }
 
@@ -78,28 +78,50 @@
     .grid-3{ display:grid; gap:16px; grid-template-columns:repeat(3,1fr); }
     @media (max-width:900px){ .grid-3{ grid-template-columns:1fr; } }
 
-    .card{ background:#fff; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
-      transition:transform var(--speed) ease, box-shadow var(--speed) ease; overflow:hidden;}
-    .card:hover{ transform:translateY(-2px); box-shadow:var(--shadow-hover); }
+    .card{ background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      transition: all .2s ease-out; overflow:hidden;}
+    .card:hover{ transform:translateY(-4px);
+      box-shadow: var(--shadow-hover); }
     .card .pad{ padding:16px; }
     .card img{ border-bottom:1px solid var(--border); object-fit:cover; aspect-ratio:4/3; }
     .badge{ display:inline-flex; align-items:center; gap:.35em; padding:.28rem .6rem; border-radius:999px; font-size:.85rem;
       background:linear-gradient(180deg,#fff,#f1f5f9); border:1px solid var(--border); color:#2e3a49; }
 
     .actions{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    .btn{ display:inline-flex; align-items:center; gap:.6em; font-weight:700; padding:.9rem 1.2rem; border-radius:999px; box-shadow:var(--shadow);
-      transition:transform var(--speed) ease, box-shadow var(--speed) ease, background var(--speed) ease; border:1px solid transparent; }
-    .btn-primary{ background:var(--brand); color:#fff; }
-    .btn-ghost{ background:#fff; color:#14161a; border:1px solid var(--border); }
+    .btn{ display:inline-flex; align-items:center; gap:.6em; font-weight:700; padding:14px 24px; border-radius:999px;
+      transition: all 0.2s ease-out; border:1px solid transparent; transform: translateY(0); }
+    .btn-primary{
+      background: var(--brand);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 4px 15px color-mix(in srgb, var(--brand) 30%, transparent);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px color-mix(in srgb, var(--brand) 40%, transparent);
+      filter: brightness(1.05);
+    }
+    .btn-ghost{ background:#fff; color:#14161a; border:1px solid var(--border); box-shadow:var(--shadow); }
+    .btn-ghost:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-hover);
+    }
 
     input[type],textarea,select,.input{
-      width:100%; border:1px solid var(--border); border-radius:12px;
-      padding:.85rem 1rem; background:#fff; outline:none; min-width:0;
-      transition: box-shadow var(--speed) ease, border var(--speed) ease;
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:1rem 1.1rem;
+      background:var(--muted);
+      outline:none;
+      min-width:0;
+      transition: box-shadow var(--speed) ease, border var(--speed) ease, background-color var(--speed) ease;
     }
     input:focus,textarea:focus,select:focus{
-      border-color: color-mix(in srgb, var(--brand) 50%, var(--border));
-      box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 18%, transparent);
+      background-color: #fff;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
     }
     .input.email{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size:1.05rem; letter-spacing:.02em; padding:1rem 1.1rem; }
 
@@ -130,6 +152,29 @@
 
     .section, [id]{ scroll-margin-top: calc(var(--header-h) + 10px); }
     .stars{ color:#d4af37; }
+
+    /* Star rating input in feedback form */
+    #reserve .star-rating {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+    #reserve .star-rating input[type="radio"] {
+      display: none;
+    }
+    #reserve .star-rating label {
+      color: #ccc;
+      cursor: pointer;
+      padding: 0 .1em;
+      transition: color .2s;
+    }
+    #reserve .star-rating input[type="radio"]:checked ~ label,
+    #reserve .star-rating label:hover,
+    #reserve .star-rating label:hover ~ label {
+      color: #d4af37;
+    }
 
     .theme-liquid header.site-header,
     .theme-liquid footer.sticky-banner{
@@ -180,7 +225,7 @@
       <div class="nav-right" id="siteNav">
         <a class="nav-link" href="#menu">メニュー</a>
         <a class="nav-link" href="#news">お知らせ</a>
-        <a class="nav-link" href="#reviews">口コミ</a>
+        <a class="nav-link" href="#reviews">お客様の声</a>
         <a class="nav-link" href="#info">店舗情報</a>
         <a class="btn btn-primary" href="#reserve">空席確認・予約</a>
       </div>
@@ -275,6 +320,7 @@
 
   <section class="section is-muted" id="reserve">
   <div class="container">
+    <h2 class="section-title" style="margin-bottom: 20px;">ご予約・お問い合わせ</h2>
     <div class="card">
       <div class="reserveTabBar" role="tablist" aria-label="ご予約・お問い合わせ / ご感想など">
         <button type="button" class="reserveTab is-active" id="tabReserve" role="tab" aria-selected="true" aria-controls="panelReserve">ご予約・お問い合わせ</button>
@@ -319,7 +365,7 @@
           <input type="text" name="company" class="honeypot" tabindex="-1" autocomplete="off" />
 
           <div class="actions">
-            <button class="btn primary" type="submit" id="reserveSubmitBtn">送信する</button>
+            <button class="btn btn-primary" type="submit" id="reserveSubmitBtn">送信する</button>
           </div>
         </form>
       </div>
@@ -343,11 +389,21 @@
             <textarea name="msg" rows="6" placeholder="ご感想・ご意見など"></textarea>
           </label>
 
+          <label>評価
+            <div class="star-rating">
+              <input type="radio" id="star5" name="rating" value="5" /><label for="star5" title="5 stars">★</label>
+              <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
+              <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
+              <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">★</label>
+              <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">★</label>
+            </div>
+          </label>
+
           <!-- spam bot 対策（見えない項目） -->
           <input type="text" name="company" class="honeypot" tabindex="-1" autocomplete="off" />
 
           <div class="actions">
-            <button class="btn primary" type="submit" id="feedbackSubmitBtn">送信する</button>
+            <button class="btn btn-primary" type="submit" id="feedbackSubmitBtn">送信する</button>
           </div>
         </form>
       </div>
@@ -369,7 +425,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbxx9CTBBst8xDz9RerGiLVpEOMUtkv0d__QE4Q2j2pwLO2VTv7mwI8TTBUB2OkHdRWG/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbydB6yjiuzAzJ6X8Qs_pEoEgKRwv9AEPQp-C8VlX8RMMmW_aqTi21cCAbAoiQOqcU4o/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -787,9 +843,13 @@
         if (!PUBLIC_API_URL || !(form instanceof HTMLFormElement)) return;
         const btn = form.querySelector('button[type="submit"]');
 
+        const ratingInput = form.querySelector('input[name="rating"]:checked');
+        const ratingValue = ratingInput ? ratingInput.value : '0';
+
         const payload = {
             nickname: String(form.querySelector('[name="nickname"]')?.value || "").trim(),
             msg: String(form.querySelector('[name="msg"]')?.value || "").trim(),
+            rating: ratingValue,
             occurred_at: new Date().toISOString(),
             type: 'feedback',
             status: 'received',
@@ -986,19 +1046,11 @@
 
 
     /* ===== NEW: Stylish Reserve Form UI (v6) ===== */
-    #reserve > .container > .card {
-      background-color: transparent;
-      border: none;
-      box-shadow: none;
-      padding: 0;
-    }
-
     .reserveTabBar {
       display: flex;
       justify-content: center;
-      padding: 0;
+      padding: 20px 20px 0;
       border-bottom: none;
-      margin-bottom: 20px;
     }
 
     .reserveTab {
@@ -1050,46 +1102,14 @@
     }
 
     #reserve .input, #reserve textarea, #reserve select {
-      background-color: var(--muted);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 1rem 1.1rem;
       margin-top: 4px;
     }
-    
-    #reserve .input:focus, #reserve textarea:focus, #reserve select:focus {
-      background-color: #fff;
-      border-color: var(--brand);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
-    }
 
-    .reservePanel .btn.primary {
-      background: var(--brand);
-      font-weight: 700;
-      padding: 14px 24px;
-      border: none;
-      box-shadow: 0 4px 15px color-mix(in srgb, var(--brand) 30%, transparent);
-      transform: translateY(0);
-      transition: all 0.2s ease-out;
-    }
     
-    .reservePanel .btn.primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px color-mix(in srgb, var(--brand) 40%, transparent);
-      filter: brightness(1.05);
-    }
 
     .reservePanel[hidden]{ display:none !important; }
     
-    .reservePanel .btn.primary{
-      background:var(--brand);
-      color:#fff;
-      border:1px solid transparent;
-      box-shadow:0 10px 22px rgba(0,0,0,.12);
-      font-weight:900;
-      padding:12px 18px;
-    }
-    .reservePanel .btn.primary:hover{ filter:brightness(.98); }
+    
     
     .form-status{ font-size:.95rem; color:var(--dim); }
 
