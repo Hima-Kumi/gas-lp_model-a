@@ -6,7 +6,7 @@
   -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Coffee & Restaurant – マイルド</title>
+  <title>Coffee & Restaurant – 蘭豆</title>
   <meta name="description" content="いつもの一日を、ちょっと上質に。阿南市の喫茶・レストラン。駐車14台、朝7:00〜営業。">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -213,14 +213,23 @@
 </head>
 
 <body>
+
+  <div id="android-install-banner" style="display: none;">
+        <p>ホーム画面に追加で、ポイントカード機能も使えて便利です！</p>
+        <button id="btn-install">追加する</button>
+        <button id="btn-close">閉じる</button>
+  </div>
+
+
   <header class="site-header" id="siteHeader">
     <div class="container nav">
       <div class="brand" id="brandName">
         <div class="brand__logo" aria-hidden="true"></div>
         <div class="brand__name">
           <span class="line1" data-bind="brandLine1">Coffee & Restaurant</span>
-          <span class="line2" data-bind="brandLine2">マイルド</span>
+          <span class="line2" data-bind="brandLine2"></span>
         </div>
+
       </div>
       <div class="nav-right" id="siteNav">
         <a class="nav-link" href="#menu">メニュー</a>
@@ -448,7 +457,7 @@
     const DEFAULT_DATA = {
       brandColor:"#16a34a",
       brandLine1:"Coffee & Restaurant",
-      brandLine2:"マイルド",
+      brandLine2:"蘭豆",
       heroTitle:"いつもの一日を、ちょっと上質に。",
       heroLead:"焼きたてトーストと淹れたての香り。阿南市の憩いの一軒です。",
       heroImage:"https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop",
@@ -457,7 +466,7 @@
       parking:"駐車14台／広い出入口で出入りラクラク",
       mapSrc:"https://www.openstreetmap.org/export/embed.html?bbox=139.70%2C35.68%2C139.72%2C35.69&layer=mapnik",
       mapLinkText:"地図を見る", mapLinkHref:"#access",
-      footerBannerText:"HP開設キャンペーン企画実施中",
+      footerBannerText:"ホーム画面に追加でポイントが貯まる！",
       sectionsMuted:{ reasons:true, menu:false, news:true, reviews:false, info:true, reserve:true },
       reasons:[
         { title:"多彩なメニュー", text:"モーニングからランチ、スイーツまで幅広くご用意。", image:"https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1600&auto=format&fit=crop" },
@@ -1129,28 +1138,32 @@
 
     <div id="panePoint" class="loy-pane active" role="tabpanel" aria-labelledby="tabPoint">
       <div class="loy-row" style="margin-bottom:8px;">
-        <input class="loy-input" placeholder="電話番号またはメールを入力して登録">
-        <button class="loy-btn">登録/更新</button>
+        <input id="loyaltyUserId" class="loy-input" placeholder="電話番号またはメールで登録">
+        <button id="loyaltyRegisterBtn" class="loy-btn">登録/更新</button>
       </div>
-      <div class="loy-row" style="margin-bottom:8px;">
-        <input class="loy-input" placeholder="店内QRで自動入力（今日の合言葉）">
-        <button class="loy-btn primary">チェックインする（1pt）</button>
+      <div class="loy-row" style="margin-bottom:12px;">
+        <p class="muted" style="margin:0; font-size:0.85rem; line-height:1.3;">
+          登録後、店頭QRをスキャンして表示されるページからチェックインしてください。
+        </p>
       </div>
-      <div class="loy-progress" title="10ptでクーポン発行"><span style="width:0%"></span></div>
-      <p class="muted" style="margin:.5rem 0 0;">ポイント: 0 / 10</p>
+      <div id="loyaltyProgress" style="margin-bottom:8px;">
+        <div class="loy-progress" title="10ptでクーポン発行"><span style="width:0%"></span></div>
+        <p id="loyaltyPoints" class="muted" style="margin:.5rem 0 0;">ポイント: 0 / 10</p>
+      </div>
     </div>
 
     <div id="paneCoupon" class="loy-pane" role="tabpanel" aria-labelledby="tabCoupon">
-      <div><p class="muted">保有中のクーポンはありません。</p></div>
+      <div id="loyaltyCouponList"><p class="muted">クーポンを読み込んでいます...</p></div>
     </div>
 
     <div id="paneHowto" class="loy-pane" role="tabpanel" aria-labelledby="tabHowto">
-      <ol style="margin-left:1rem;">
-        <li>初回は上の欄に電話番号orメールを入れて<strong>登録</strong></li>
-        <li>来店時はレジ横の<strong>QR</strong>を読み取り、上の<strong>チェックイン</strong>を押す</li>
-        <li><strong>10pt</strong>で自動的にクーポンが発行されます</li>
+      <ol style="margin-left:1rem; padding-left: 1rem;">
+        <li>初回は「ポイント」タブで電話番号orメールを入れて<strong>登録/更新</strong>。</li>
+        <li>来店時に店頭のQRコードをスキャンし、開いたページのボタンを押すとチェックイン（ポイント付与）が完了します。</li>
+        <li><strong>10pt</strong>で自動的にクーポンが発行されます。</li>
+        <li>「クーポン」タブで使用したいクーポンを店員に提示し、目の前で「使用する」ボタンを押してください。</li>
       </ol>
-      <small class="muted">※ 同日の複数チェックインはできません。</small>
+      <small class="muted">※ ポイントのチェックインは8時間に1回までです。</small>
     </div>
   </div>
 
@@ -1243,5 +1256,425 @@
 
   <iframe id="gasFormTarget" name="gasFormTarget" style="display:none;width:0;height:0;border:0;"></iframe>
 
+
+<div id="pwa-install-prompt" class="pwa-prompt" style="display: none;">
+  <div class="pwa-prompt-content">
+    <button class="pwa-close-btn" onclick="closePwaPrompt()">×</button>
+    <p>ホーム画面に追加で、<br>ポイントカード機能も使えて便利です！</p>
+    <div class="pwa-instructions">
+      <span class="pwa-step">1. 下の <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgNXYxMk0xMiA1TDggOU0xMiA1TDE2IDlNMjAgMTFWMTlDMjAgMjAuMTA0NiAxOS4xMDQ2IDIxIDE4IDIxSDE4QzYuODk1NDMgMjEgNiAyMC4xMDQ2IDYgMTlWMTFDMiAxMCAyIDkuODk1NDMgMiA5QzIgNy44OTU0MyAyLjg5NTQzIDcgNCA3SDIwQzIxLjEwNDYgNyAyMiA3Ljg5NTQzIDIyIDlWMTEiIHN0cm9rZT0iIzAwN0FGRiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" alt="共有アイコン" class="inline-icon"> をタップ</span>
+      <span class="pwa-step">2. 「ホーム画面に追加」を選択</span>
+    </div>
+  </div>
+  <div class="pwa-arrow"></div>
+</div>
+
+<!-- service workerへのリンク -->
+<script>
+  // file:// プロトコル等ではPWA機能（Manifest/ServiceWorker）が動作しないため、
+  // http/httpsの時のみ実行・読み込みを行うようガードします（これでローカルのエラーが消えます）
+  if (location.protocol.startsWith('http')) {
+    // 1. manifest.json を動的に追加
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = './manifest.json';
+    document.head.appendChild(link);
+
+    // 2. Service Worker を登録
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
+  }
+</script>
+
+<style>
+/* ポップアップのスタイル */
+.pwa-prompt {
+  position: fixed;
+  bottom: 80px; /* Safariの下部バーに被らないよう調整 */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 350px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  z-index: 9999;
+  padding: 15px;
+  font-family: sans-serif;
+  border: 1px solid #eee;
+}
+.pwa-prompt-content p {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.4;
+  text-align: center;
+}
+.pwa-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: #666;
+}
+.inline-icon {
+  width: 18px;
+  vertical-align: middle;
+}
+.pwa-close-btn {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #aaa;
+  cursor: pointer;
+}
+/* 下向きの矢印（共有ボタンを指す） */
+.pwa-arrow {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #ffffff;
+}
+</style>
+
+<script>
+function isIos() {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod/.test(userAgent);
+}
+
+function isInStandaloneMode() {
+  return ('standalone' in window.navigator) && (window.navigator.standalone);
+}
+
+function closePwaPrompt() {
+  document.getElementById('pwa-install-prompt').style.display = 'none';
+  // 一度閉じたら24時間は表示しない（セッション等で制御）
+  localStorage.setItem('pwa-prompt-dismissed', Date.now());
+}
+
+window.onload = function() {
+  const lastDismissed = localStorage.getItem('pwa-prompt-dismissed');
+  const now = Date.now();
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  // iOS かつ スタンドアロン（インストール済み）でない かつ 24時間以内に閉じていない場合
+  if (isIos() && !isInStandaloneMode() && (!lastDismissed || (now - lastDismissed) > oneDay)) {
+    document.getElementById('pwa-install-prompt').style.display = 'block';
+  }
+};
+</script>
+
+
+<script>
+(function() {
+  const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycbydB6yjiuzAzJ6X8Qs_pEoEgKRwv9AEPQp-C8VlX8RMMmW_aqTi21cCAbAoiQOqcU4o/exec";
+  const LS_DEVICE_ID_KEY = "loyaltyDeviceId";
+  const LS_USER_ID_KEY = "loyaltyUserId";
+
+  let loyaltyState = {
+    deviceId: null,
+    userId: null,
+    points: 0,
+    coupons: [],
+    isLoading: false,
+  };
+
+  // DOM elements
+  const getEl = (id) => document.getElementById(id);
+  const elements = {
+    modal: getEl('loyModal'),
+    openBtn: getEl('openLoyalty'),
+    userIdInput: getEl('loyaltyUserId'),
+    registerBtn: getEl('loyaltyRegisterBtn'),
+    pointsDisplay: getEl('loyaltyPoints'),
+    progressSpan: getEl('loyaltyProgress')?.querySelector('span'),
+    couponList: getEl('loyaltyCouponList'),
+  };
+
+  /**
+   * Call the loyalty API via fetch
+   * @param {string} action The API action to perform
+   * @param {object} payload The data to send
+   * @returns {Promise<object>} The JSON response from the API
+   */
+  async function callLoyaltyApi(action, payload = {}) {
+    if (loyaltyState.isLoading) return { ok: false, error: 'busy' };
+    loyaltyState.isLoading = true;
+
+    try {
+      const response = await fetch(LOYALTY_API_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Changed for fire-and-forget style to avoid CORS issues with redirects
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: action,
+          key: SITE_KEY, // from main script
+          origin: location.origin,
+          deviceId: loyaltyState.deviceId,
+          userId: loyaltyState.userId,
+          ...payload,
+        }),
+      });
+      // "no-cors" mode means we won't get a readable response, so we'll have to poll for state
+      // For actions that need a response, we'd need a different strategy (like the iframe postMessage)
+      // For now, we assume optimistic success and refresh state.
+      setTimeout(() => loyaltyState.isLoading = false, 1000);
+      return { ok: true, optimistic: true };
+
+    } catch (error) {
+      console.error(`API call failed for action: ${action}`, error);
+      loyaltyState.isLoading = false;
+      return { ok: false, error: 'network_error', message: error.message };
+    }
+  }
+  
+  /**
+   * Fetches the current state from the server (using a JSONP-like approach for GET)
+   */
+  function fetchState() {
+    if(!loyaltyState.deviceId && !loyaltyState.userId) return;
+
+    const cb = "cb_loyalty_" + Math.random().toString(36).slice(2);
+    const params = new URLSearchParams({
+      action: "loyalty_get_state",
+      key: SITE_KEY,
+      deviceId: loyaltyState.deviceId,
+      userId: loyaltyState.userId,
+      callback: cb
+    });
+
+    const s = document.createElement("script");
+    s.src = `${LOYALTY_API_URL}?${params.toString()}`;
+    
+    window[cb] = (res) => {
+      if(res && res.ok){
+        loyaltyState.points = res.points;
+        loyaltyState.coupons = res.coupons || [];
+        loyaltyState.userId = res.userId;
+        if(elements.userIdInput) elements.userIdInput.value = res.userId;
+        localStorage.setItem(LS_USER_ID_KEY, res.userId);
+        updateLoyaltyUI();
+      } else {
+        // user not found, clear local userId
+         localStorage.removeItem(LS_USER_ID_KEY);
+      }
+      try{ s.remove(); delete window[cb]; } catch(e){}
+    };
+    
+    s.onerror = () => {
+       try{ s.remove(); delete window[cb]; } catch(e){}
+    };
+    document.head.appendChild(s);
+  }
+
+
+  /**
+   * Update the UI based on the current state
+   */
+  function updateLoyaltyUI() {
+    const { points, coupons } = loyaltyState;
+    if (elements.pointsDisplay) {
+      elements.pointsDisplay.textContent = `ポイント: ${points} / 10`;
+    }
+    if (elements.progressSpan) {
+      elements.progressSpan.style.width = `${points * 10}%`;
+    }
+    if (elements.couponList) {
+      if (coupons.length > 0) {
+        elements.couponList.innerHTML = '';
+        coupons.forEach(coupon => {
+          const couponEl = document.createElement('div');
+          couponEl.className = 'card';
+          couponEl.innerHTML = `<div class="pad">
+            <strong>10ポイント特典クーポン</strong>
+            <p class="muted">発行日: ${new Date(coupon.issuedAt).toLocaleDateString()}</p>
+            <button class="loy-btn" onclick="alert('店員に提示して使用します')">使用する</button>
+          </div>`;
+          elements.couponList.appendChild(couponEl);
+        });
+      } else {
+        elements.couponList.innerHTML = '<p class="muted">保有中のクーポンはありません。</p>';
+      }
+    }
+  }
+
+  /**
+   * Handle the registration/update button click
+   */
+  async function handleRegister() {
+    const userId = elements.userIdInput.value.trim();
+    if (!userId) {
+      alert("電話番号またはメールアドレスを入力してください。");
+      return;
+    }
+    
+    loyaltyState.userId = userId;
+    localStorage.setItem(LS_USER_ID_KEY, userId);
+    
+    alert("ユーザー情報を更新中です...");
+    await callLoyaltyApi("loyalty_register", { userId });
+    // After optimistic send, fetch the latest state
+    setTimeout(fetchState, 1500);
+  }
+  
+  /**
+   * Handle check-in from a URL token
+   */
+  async function handleCheckinFromToken(token){
+    alert("チェックイン処理中です...");
+    // We can't get a direct response, so we just fetch state after a delay
+    await callLoyaltyApi('loyalty_checkin', { token });
+    setTimeout(() => {
+        elements.modal.style.display = 'block'; // Show modal to see result
+        fetchState();
+    }, 2000);
+  }
+
+
+  /**
+   * Initialize the loyalty program script
+   */
+  function initLoyalty() {
+    // 1. Get or create device ID
+    let deviceId = localStorage.getItem(LS_DEVICE_ID_KEY);
+    if (!deviceId) {
+      deviceId = self.crypto?.randomUUID ? self.crypto.randomUUID() : `dev_${Date.now()}_${Math.random()}`;
+      localStorage.setItem(LS_DEVICE_ID_KEY, deviceId);
+    }
+    loyaltyState.deviceId = deviceId;
+
+    // 2. Load userId from storage
+    const userId = localStorage.getItem(LS_USER_ID_KEY);
+    if (userId) {
+      loyaltyState.userId = userId;
+      if (elements.userIdInput) elements.userIdInput.value = userId;
+    }
+
+    // 3. Add event listeners
+    elements.openBtn?.addEventListener('click', () => {
+      elements.modal.style.display = 'block'; // Show modal immediately
+      fetchState(); // Fetch latest state when modal is opened
+    });
+    elements.registerBtn?.addEventListener('click', handleRegister);
+
+    // 4. Handle check-in from QR code scan if token is present
+    handleCheckinFromUrl();
+  }
+
+  /**
+   * Handle check-in from a URL token
+   */
+  async function handleCheckinFromUrl(){
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('checkinToken');
+
+    if (token) {
+      // Clean the URL immediately
+      const cleanUrl = window.location.pathname + window.location.hash;
+      history.replaceState(null, '', cleanUrl);
+
+      // Show a loading indicator
+      alert("チェックイン処理中...");
+
+      const result = await callApiWithResponse("loyalty_checkin_from_qr", { token: token });
+
+      if (result && result.ok) {
+        alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
+        // Update state and UI from response
+        loyaltyState.points = result.points;
+        loyaltyState.coupons = result.coupons || [];
+        loyaltyState.userId = result.userId;
+        if(elements.userIdInput) elements.userIdInput.value = result.userId;
+        updateLoyaltyUI();
+        elements.modal.style.display = 'block'; // Show modal to see result
+      } else {
+        alert("チェックインエラー: " + (result?.message || result?.error || "不明なエラー"));
+      }
+    }
+  }
+  
+  /**
+   * Calls API and expects a JSON response. Uses iframe post-messaging.
+   */
+  function callApiWithResponse(action, payload = {}) {
+    return new Promise((resolve, reject) => {
+      if (loyaltyState.isLoading) {
+        resolve({ ok: false, error: 'busy' });
+        return;
+      }
+      loyaltyState.isLoading = true;
+
+      const requestId = newClientRequestId_(); // Assumes this function exists globally or can be copied
+      
+      const form = document.createElement("form");
+      form.style.display = "none";
+      document.body.appendChild(form);
+
+      // Add fields to form
+      const fields = {
+        action: action,
+        key: SITE_KEY,
+        origin: location.origin,
+        request_id: requestId,
+        deviceId: loyaltyState.deviceId,
+        ...payload
+      };
+      for(const key in fields){
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = fields[key];
+        form.appendChild(input);
+      }
+
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        loyaltyState.isLoading = false;
+        window.removeEventListener("message", messageHandler);
+        document.body.removeChild(form);
+        reject(new Error("API response timeout"));
+      }, 10000);
+
+      const messageHandler = (event) => {
+        if (event.origin !== new URL(LOYALTY_API_URL).origin) return;
+        if (settled) return;
+
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.request_id === requestId) {
+            settled = true;
+            clearTimeout(timeoutId);
+            loyaltyState.isLoading = false;
+            window.removeEventListener("message", messageHandler);
+            document.body.removeChild(form);
+            resolve(data);
+          }
+        } catch (e) { /* ignore non-json messages */ }
+      };
+
+      window.addEventListener("message", messageHandler);
+      
+      submitToGASViaIframe_fireAndForget_(form, action, fields);
+    });
+  }
+
+
+  // Run initializer after main page content is loaded
+  window.addEventListener('load', initLoyalty);
+
+})();
+</script>
 </body>
 </html>
