@@ -1447,7 +1447,7 @@ window.onload = function() {
 
 <script>
 (function() {
-  const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycbydB6yjiuzAzJ6X8Qs_pEoEgKRwv9AEPQp-C8VlX8RMMmW_aqTi21cCAbAoiQOqcU4o/exec";
+  const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycby9gaUiKAulNEBM7QN8B4C9CWBkiiFYY0ZYHPhaVvWdnk9CcuvysZuwGFzusOE2m4oIUw/exec";
   const LS_DEVICE_ID_KEY = "loyaltyDeviceId";
   const LS_USER_ID_KEY = "loyaltyUserId";
 
@@ -1591,10 +1591,36 @@ window.onload = function() {
     loyaltyState.userId = userId;
     localStorage.setItem(LS_USER_ID_KEY, userId);
     
-    alert("ユーザー情報を更新中です...");
-    await callLoyaltyApi("loyalty_register", { userId });
-    // After optimistic send, fetch the latest state
-    setTimeout(fetchState, 1500);
+    const originalButtonText = elements.registerBtn.textContent;
+    elements.registerBtn.disabled = true;
+    elements.registerBtn.textContent = "更新中...";
+
+    try {
+      const result = await callApiWithResponse("loyalty_register", { userId });
+
+      if (result && result.ok) {
+        alert("ユーザー情報を更新しました。");
+        // Update state and UI from response
+        loyaltyState.points = result.points;
+        loyaltyState.coupons = result.coupons || [];
+        loyaltyState.userId = result.userId;
+        if(elements.userIdInput) elements.userIdInput.value = result.userId;
+        updateLoyaltyUI();
+      } else {
+        // Clear local user id if registration failed on the server
+        localStorage.removeItem(LS_USER_ID_KEY);
+        loyaltyState.userId = null;
+        alert("エラー: ユーザー情報の更新に失敗しました。\n" + (result?.message || result?.error || ""));
+      }
+    } catch (error) {
+      localStorage.removeItem(LS_USER_ID_KEY);
+      loyaltyState.userId = null;
+      alert("通信エラーが発生しました。しばらくしてからもう一度お試しください。");
+      console.error("Registration failed:", error);
+    } finally {
+      elements.registerBtn.disabled = false;
+      elements.registerBtn.textContent = originalButtonText;
+    }
   }
   
   /**
