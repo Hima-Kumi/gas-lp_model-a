@@ -1472,113 +1472,6 @@ window.onload = function() {
   };
 
   /**
-   * Call the loyalty API via fetch
-   * @param {string} action The API action to perform
-   * @param {object} payload The data to send
-   * @returns {Promise<object>} The JSON response from the API
-   */
-  async function callLoyaltyApi(action, payload = {}) {
-    if (loyaltyState.isLoading) return { ok: false, error: 'busy' };
-    loyaltyState.isLoading = true;
-
-    try {
-      const response = await fetch(LOYALTY_API_URL, {
-        method: 'POST',
-        mode: 'no-cors', // Changed for fire-and-forget style to avoid CORS issues with redirects
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: action,
-          key: SITE_KEY, // from main script
-          origin: location.origin,
-          deviceId: loyaltyState.deviceId,
-          userId: loyaltyState.userId,
-          ...payload,
-        }),
-      });
-      // "no-cors" mode means we won't get a readable response, so we'll have to poll for state
-      // For actions that need a response, we'd need a different strategy (like the iframe postMessage)
-      // For now, we assume optimistic success and refresh state.
-      setTimeout(() => loyaltyState.isLoading = false, 1000);
-      return { ok: true, optimistic: true };
-
-    } catch (error) {
-      console.error(`API call failed for action: ${action}`, error);
-      loyaltyState.isLoading = false;
-      return { ok: false, error: 'network_error', message: error.message };
-    }
-  }
-  
-  /**
-   * Fetches the current state from the server (using a JSONP-like approach for GET)
-   */
-  function fetchState() {
-    if(!loyaltyState.deviceId && !loyaltyState.userId) return;
-
-    const cb = "cb_loyalty_" + Math.random().toString(36).slice(2);
-    const params = new URLSearchParams({
-      action: "loyalty_get_state",
-      key: SITE_KEY,
-      deviceId: loyaltyState.deviceId,
-      userId: loyaltyState.userId,
-      callback: cb
-    });
-
-    const s = document.createElement("script");
-    s.src = `${LOYALTY_API_URL}?${params.toString()}`;
-    
-    window[cb] = (res) => {
-      if(res && res.ok){
-        loyaltyState.points = res.points;
-        loyaltyState.coupons = res.coupons || [];
-        loyaltyState.userId = res.userId;
-        if(elements.userIdInput) elements.userIdInput.value = res.userId;
-        localStorage.setItem(LS_USER_ID_KEY, res.userId);
-        updateLoyaltyUI();
-      } else {
-        // user not found, clear local userId
-         localStorage.removeItem(LS_USER_ID_KEY);
-      }
-      try{ s.remove(); delete window[cb]; } catch(e){}
-    };
-    
-    s.onerror = () => {
-       try{ s.remove(); delete window[cb]; } catch(e){}
-    };
-    document.head.appendChild(s);
-  }
-
-
-  /**
-   * Update the UI based on the current state
-   */
-  function updateLoyaltyUI() {
-    const { points, coupons } = loyaltyState;
-    if (elements.pointsDisplay) {
-      elements.pointsDisplay.textContent = `ポイント: ${points} / 10`;
-    }
-    if (elements.progressSpan) {
-      elements.progressSpan.style.width = `${points * 10}%`;
-    }
-    if (elements.couponList) {
-      if (coupons.length > 0) {
-        elements.couponList.innerHTML = '';
-        coupons.forEach(coupon => {
-          const couponEl = document.createElement('div');
-          couponEl.className = 'card';
-          couponEl.innerHTML = `<div class="pad">
-            <strong>10ポイント特典クーポン</strong>
-            <p class="muted">発行日: ${new Date(coupon.issuedAt).toLocaleDateString()}</p>
-            <button class="loy-btn" onclick="alert('店員に提示して使用します')">使用する</button>
-          </div>`;
-          elements.couponList.appendChild(couponEl);
-        });
-      } else {
-        elements.couponList.innerHTML = '<p class="muted">保有中のクーポンはありません。</p>';
-      }
-    }
-  }
-
-  /**
    * Handle the registration/update button click (Optimistic UI)
    */
   function handleRegister() {
@@ -1592,10 +1485,13 @@ window.onload = function() {
     loyaltyState.userId = userId;
     localStorage.setItem(LS_USER_ID_KEY, userId);
     
-    // --- Fire-and-forget ---
-    // Send the request but don't wait for a response.
-    // Assume it will succeed, as we can't get a response anyway due to the environment issue.
-    callLoyaltyApi("loyalty_register", { userId });
+    // --- Fire-and-forget using the working iframe method ---
+    const form = document.createElement('form');
+    // The submitToGASViaIframe_fireAndForget_ function handles the rest
+    submitToGASViaIframe_fireAndForget_(form, 'loyalty_register', {
+        userId: userId,
+        deviceId: loyaltyState.deviceId
+    });
     
     // Show optimistic success message and update UI
     alert("ユーザー情報を更新しました。最新の状態が反映されるまで少し時間がかかる場合があります。");
