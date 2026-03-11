@@ -1259,11 +1259,18 @@
 
 <div id="pwa-install-prompt" class="pwa-prompt" style="display: none;">
   <div class="pwa-prompt-content">
-    <button class="pwa-close-btn" onclick="closePwaPrompt()">×</button>
-    <p>ホーム画面に追加で、<br>ポイントカード機能も使えて便利です！</p>
+    <button class="pwa-close-btn" onclick="closePwaPrompt()" aria-label="閉じる">&times;</button>
+    <h4>ホーム画面に追加しませんか？</h4>
+    <p>このサイトをアプリのようにホーム画面に設置できます。ブックマークよりも手軽にアクセスできて便利です。</p>
     <div class="pwa-instructions">
-      <span class="pwa-step">1. 下の <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgNXYxMk0xMiA1TDggOU0xMiA1TDE2IDlNMjAgMTFWMTlDMjAgMjAuMTA0NiAxOS4xMDQ2IDIxIDE4IDIxSDE4QzYuODk1NDMgMjEgNiAyMC4xMDQ2IDYgMTlWMTFDMiAxMCAyIDkuODk1NDMgMiA5QzIgNy44OTU0MyAyLjg5NTQzIDcgNCA3SDIwQzIxLjEwNDYgNyAyMiA3Ljg5NTQzIDIyIDlWMTEiIHN0cm9rZT0iIzAwN0FGRiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" alt="共有アイコン" class="inline-icon"> をタップ</span>
-      <span class="pwa-step">2. 「ホーム画面に追加」を選択</span>
+      <div class="pwa-step">
+        <span class="pwa-step-num">1</span>
+        <span>ブラウザ下部の共有アイコン <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgNXYxMk0xMiA1TDggOU0xMiA1TDE2IDlNMjAgMTFWMTlDMjAgMjAuMTA0NiAxOS4xMDQ2IDIxIDE4IDIxSDE4QzYuODk1NDMgMjEgNiAyMC4xMDQ2IDYgMTlWMTFDMiAxMCAyIDkuODk1NDMgMiA5QzIgNy44OTU0MyAyLjg5NTQzIDcgNCA3SDIwQzIxLjEwNDYgNyAyMiA3Ljg5NTQzIDIyIDlWMTEiIHN0cm9rZT0iIzAwN0FGRiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" alt="共有アイコン" class="inline-icon"> をタップ</span>
+      </div>
+      <div class="pwa-step">
+        <span class="pwa-step-num">2</span>
+        <span>メニューから「ホーム画面に追加」を選択</span>
+      </div>
     </div>
   </div>
   <div class="pwa-arrow"></div>
@@ -1288,61 +1295,124 @@
 </script>
 
 <style>
-/* ポップアップのスタイル */
+/* PWAインストール誘導ポップアップのスタイル（改善版） */
 .pwa-prompt {
   position: fixed;
-  bottom: 80px; /* Safariの下部バーに被らないよう調整 */
+  bottom: 75px; /* iOS Safariのバーとの距離を調整 */
   left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 350px;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  z-index: 9999;
-  padding: 15px;
-  font-family: sans-serif;
-  border: 1px solid #eee;
+  width: calc(100% - 30px);
+  max-width: 380px;
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15), 0 4px 10px rgba(0,0,0,0.1);
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  border: 1px solid rgba(0,0,0,0.05);
+  /* visibility と opacity で表示を制御（アニメーションのため） */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+  transform: translateX(-50%) translateY(10px);
+}
+.pwa-prompt[style*="block"] {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.pwa-prompt-content {
+  padding: 20px;
+  padding-bottom: 16px;
+  text-align: center;
+}
+.pwa-prompt-content h4 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #000;
 }
 .pwa-prompt-content p {
-  margin: 0 0 10px 0;
+  margin: 0 0 16px;
   font-size: 14px;
-  color: #333;
-  line-height: 1.4;
-  text-align: center;
+  color: #555;
+  line-height: 1.5;
 }
 .pwa-instructions {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 13px;
-  color: #666;
+  gap: 12px;
+  text-align: left;
+  background-color: #f7f7f7;
+  padding: 12px;
+  border-radius: 10px;
+}
+.pwa-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #333;
+}
+.pwa-step-num {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  background-color: var(--brand, #16a34a);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  border-radius: 50%;
 }
 .inline-icon {
-  width: 18px;
-  vertical-align: middle;
+  width: 20px;
+  height: 20px;
+  vertical-align: -5px; /* アイコンの縦位置を微調整 */
+  margin: 0 2px;
 }
 .pwa-close-btn {
   position: absolute;
-  top: 5px;
-  right: 10px;
-  background: none;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: #e8e8e8;
   border: none;
-  font-size: 20px;
-  color: #aaa;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 28px;
+  text-align: center;
+  color: #888;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
-/* 下向きの矢印（共有ボタンを指す） */
+.pwa-close-btn:hover {
+  background-color: #ddd;
+}
+/* 下向きの矢印（アニメーション付き） */
 .pwa-arrow {
   position: absolute;
-  bottom: -10px;
+  bottom: -12px;
   left: 50%;
-  transform: translateX(-50%);
+  /* transform は animation で制御 */
   width: 0;
   height: 0;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-top: 10px solid #ffffff;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 12px solid #fff;
+  animation: pwa-bounce 1.5s infinite;
+}
+
+@keyframes pwa-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-6px);
+  }
+  60% {
+    transform: translateX(-50%) translateY(-3px);
+  }
 }
 </style>
 
