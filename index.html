@@ -1472,33 +1472,125 @@ window.onload = function() {
   };
 
   /**
-   * Handle the registration/update button click (Optimistic UI)
+   * Updates the loyalty UI based on the current state
    */
-  function handleRegister() {
+  function updateLoyaltyUI() {
+    if (!elements.modal) return; // Don't update if elements not found
+
+    // Update user ID input
+    if (elements.userIdInput) {
+      elements.userIdInput.value = loyaltyState.userId || '';
+    }
+    
+    // Update points display
+    const points = loyaltyState.points || 0;
+    if (elements.pointsDisplay) {
+      elements.pointsDisplay.textContent = `ポイント: ${points} / 10`;
+    }
+    if (elements.progressSpan) {
+      const percentage = (points / 10) * 100;
+      elements.progressSpan.style.width = `${percentage}%`;
+    }
+
+    // Update coupon list
+    if (elements.couponList) {
+        if (loyaltyState.isLoading) {
+            elements.couponList.innerHTML = '<p class="muted">読み込んでいます...</p>';
+        } else if (loyaltyState.coupons && loyaltyState.coupons.length > 0) {
+            elements.couponList.innerHTML = ''; // Clear existing
+            loyaltyState.coupons.forEach(coupon => {
+                const couponEl = document.createElement('div');
+                couponEl.className = 'loy-coupon-card'; // Add a class for styling
+                couponEl.innerHTML = `
+                    <strong>特典クーポン</strong>
+                    <p>この画面を店員に提示してください。</p>
+                    <small>発行日時: ${new Date(coupon.issuedAt).toLocaleString()}</small>
+                    <button class="loy-btn primary use-coupon-btn" data-coupon-id="${coupon.couponId}">使用する</button>
+                `;
+                elements.couponList.appendChild(couponEl);
+            });
+        } else {
+            elements.couponList.innerHTML = '<p class="muted">利用可能なクーポンはありません。</p>';
+        }
+    }
+  }
+
+
+  /**
+   * Fetches the latest state from the server
+   */
+  async function fetchState() {
+    if (!loyaltyState.userId) {
+      // If there's no user, just ensure the UI is in a logged-out state
+      loyaltyState.points = 0;
+      loyaltyState.coupons = [];
+      updateLoyaltyUI();
+      return;
+    }
+
+    loyaltyState.isLoading = true;
+    updateLoyaltyUI(); // Show loading state
+
+    const result = await callApiWithResponse('loyalty_get_state', { userId: loyaltyState.userId });
+    loyaltyState.isLoading = false;
+
+    if (result && result.ok) {
+      loyaltyState.points = result.points;
+      loyaltyState.coupons = result.coupons || [];
+    } else {
+      // If user not found on server, reset local state
+      if (result && result.error === 'user_not_found') {
+          loyaltyState.points = 0;
+          loyaltyState.coupons = [];
+      }
+      // Otherwise, just log error and keep stale data
+      console.error("Failed to fetch state:", result?.error);
+    }
+    updateLoyaltyUI();
+  }
+
+
+  /**
+   * Handle the registration/update button click (NOW with response handling)
+   */
+  async function handleRegister() {
     const userId = elements.userIdInput.value.trim();
     if (!userId) {
       alert("電話番号またはメールアドレスを入力してください。");
       return;
     }
-    
-    // Save locally immediately
+
+    // Show loading state
+    elements.registerBtn.disabled = true;
+    elements.registerBtn.textContent = "処理中...";
+
+    // Save userId locally immediately for optimistic feel
     loyaltyState.userId = userId;
     localStorage.setItem(LS_USER_ID_KEY, userId);
-    
-    // --- Fire-and-forget using the working iframe method ---
-    const form = document.createElement('form');
-    // The submitToGASViaIframe_fireAndForget_ function handles the rest
-    submitToGASViaIframe_fireAndForget_(form, 'loyalty_register', {
+
+    const result = await callApiWithResponse('loyalty_register', {
         userId: userId,
         deviceId: loyaltyState.deviceId
     });
-    
-    // Show optimistic success message and update UI
-    alert("ユーザー情報を更新しました。最新の状態が反映されるまで少し時間がかかる場合があります。");
 
-    // After optimistic send, fetch the latest state after a delay
-    // This will update the points and coupons if the server call was successful
-    setTimeout(fetchState, 2000);
+    // Restore button
+    elements.registerBtn.disabled = false;
+    elements.registerBtn.textContent = "登録/更新";
+
+    if (result && result.ok) {
+      alert("ユーザー情報を登録/更新しました。");
+      // Update state from the successful registration response
+      loyaltyState.points = result.points;
+      loyaltyState.coupons = result.coupons || [];
+      updateLoyaltyUI();
+    } else {
+      alert("登録に失敗しました: " + (result?.error || "不明なエラー"));
+      // Rollback optimistic save if server failed
+      const oldUserId = localStorage.getItem(LS_USER_ID_KEY);
+      if(oldUserId !== userId){
+         loyaltyState.userId = oldUserId;
+      }
+    }
   }
   
   /**
@@ -1536,7 +1628,7 @@ window.onload = function() {
 
     // 3. Add event listeners
     elements.openBtn?.addEventListener('click', () => {
-      elements.modal.style.display = 'block'; // Show modal immediately
+      // elements.modal.style.display is handled by other script, just fetch
       fetchState(); // Fetch latest state when modal is opened
     });
     elements.registerBtn?.addEventListener('click', handleRegister);
