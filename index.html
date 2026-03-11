@@ -1680,7 +1680,7 @@ window.onload = function() {
       }
       loyaltyState.isLoading = true;
 
-      const requestId = newClientRequestId_(); // Assumes this function exists globally or can be copied
+      const requestId = newClientRequestId_();
       
       const form = document.createElement("form");
       form.style.display = "none";
@@ -1732,7 +1732,11 @@ window.onload = function() {
 
       window.addEventListener("message", messageHandler);
       
-      submitToGASViaIframe_fireAndForget_(form, action, fields);
+      // Submit directly, do not use the fire-and-forget helper
+      form.method = "POST";
+      form.action = PUBLIC_API_URL;
+      form.target = GAS_IFRAME_NAME;
+      form.submit();
     });
   }
 
