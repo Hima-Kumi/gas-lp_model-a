@@ -1674,87 +1674,77 @@ window.onload = function() {
    */
   function callApiWithResponse(action, payload = {}) {
     return new Promise((resolve, reject) => {
-      if (loyaltyState.isLoading) {
-        resolve({ ok: false, error: 'busy' });
-        return;
-      }
-      loyaltyState.isLoading = true;
+        if (loyaltyState.isLoading) {
+            resolve({ ok: false, error: 'busy' });
+            return;
+        }
+        loyaltyState.isLoading = true;
 
-      const requestId = newClientRequestId_();
-      
-      const form = document.createElement("form");
-      form.style.display = "none";
-      document.body.appendChild(form);
+        const requestId = newClientRequestId_();
+        const iframeName = `gas_target_${requestId}`;
 
-      // Add fields to form
-      const fields = {
-        action: action,
-        key: SITE_KEY,
-        origin: location.origin,
-        request_id: requestId,
-        deviceId: loyaltyState.deviceId,
-        ...payload
-      };
-      for(const key in fields){
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = fields[key];
-        form.appendChild(input);
-      }
+        // Create a temporary iframe for this specific call
+        const iframe = document.createElement('iframe');
+        iframe.name = iframeName;
+        iframe.style.display = 'none';
 
-      let settled = false;
-      const timeoutId = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        loyaltyState.isLoading = false;
-        window.removeEventListener("message", messageHandler);
-        document.body.removeChild(form);
-        reject(new Error("API response timeout"));
-      }, 10000);
+        // Create a temporary form for this specific call
+        const form = document.createElement("form");
+        form.style.display = "none";
+        form.target = iframeName;
+        form.method = "POST";
+        form.action = LOYALTY_API_URL;
 
-      const messageHandler = (event) => {
-        if (event.origin !== new URL(LOYALTY_API_URL).origin) return;
-        if (settled) return;
-
-        let data;
-        // データが文字列でなければ、JSONではないので無視
-        if (typeof event.data !== 'string') {
-          return;
+        const fields = {
+            action: action, key: SITE_KEY, origin: location.origin,
+            request_id: requestId, deviceId: loyaltyState.deviceId, ...payload
+        };
+        for (const key in fields) {
+            if(fields[key] === undefined || fields[key] === null) continue;
+            const input = document.createElement("input");
+            input.type = "hidden"; input.name = key; input.value = fields[key];
+            form.appendChild(input);
         }
 
-        try {
-          data = JSON.parse(event.data);
-        } catch (e) {
-          // JSONとしてパースできなければ、目的のメッセージではないので無視
-          return;
-        }
+        let settled = false;
+        const cleanup = () => {
+            if (settled) return;
+            settled = true;
+            loyaltyState.isLoading = false;
+            window.removeEventListener("message", messageHandler);
+            clearTimeout(timeoutId);
+            // Clean up the temporary elements from the DOM
+            setTimeout(() => {
+                try { document.body.removeChild(iframe); } catch(e){}
+                try { document.body.removeChild(form); } catch(e){}
+            }, 100);
+        };
 
-        // パースした結果がオブジェクトであり、かつrequest_idが一致するかチェック
-        if (data && typeof data === 'object' && data.request_id === requestId) {
-          settled = true;
-          clearTimeout(timeoutId);
-  
-          // isLoadingはここでfalseにするのがより安全
-          loyaltyState.isLoading = false;
-          
-          window.removeEventListener("message", messageHandler);
-          // formの削除は後続処理に影響を与えないよう、少し遅延させる
-          setTimeout(() => {
-              try { document.body.removeChild(form); } catch(e){}
-          }, 100);
+        const timeoutId = setTimeout(() => {
+            cleanup();
+            reject(new Error("API response timeout"));
+        }, 10000);
 
-          resolve(data);
-        }
-      };
+        const messageHandler = (event) => {
+            if (event.origin !== new URL(LOYALTY_API_URL).origin) return;
+            if (settled) return;
 
-      window.addEventListener("message", messageHandler);
-      
-      // Submit directly, do not use the fire-and-forget helper
-      form.method = "POST";
-      form.action = PUBLIC_API_URL;
-      form.target = GAS_IFRAME_NAME;
-      form.submit();
+            let data;
+            if (typeof event.data !== 'string') return;
+            try { data = JSON.parse(event.data); } catch (e) { return; }
+
+            if (data && typeof data === 'object' && data.request_id === requestId) {
+                cleanup();
+                resolve(data);
+            }
+        };
+
+        window.addEventListener("message", messageHandler);
+        
+        // Append temporary elements to the body and submit
+        document.body.appendChild(iframe);
+        document.body.appendChild(form);
+        form.submit();
     });
   }
 
