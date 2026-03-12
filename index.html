@@ -1717,17 +1717,35 @@ window.onload = function() {
         if (event.origin !== new URL(LOYALTY_API_URL).origin) return;
         if (settled) return;
 
+        let data;
+        // データが文字列でなければ、JSONではないので無視
+        if (typeof event.data !== 'string') {
+          return;
+        }
+
         try {
-          const data = JSON.parse(event.data);
-          if (data && data.request_id === requestId) {
-            settled = true;
-            clearTimeout(timeoutId);
-            loyaltyState.isLoading = false;
-            window.removeEventListener("message", messageHandler);
-            document.body.removeChild(form);
-            resolve(data);
-          }
-        } catch (e) { /* ignore non-json messages */ }
+          data = JSON.parse(event.data);
+        } catch (e) {
+          // JSONとしてパースできなければ、目的のメッセージではないので無視
+          return;
+        }
+
+        // パースした結果がオブジェクトであり、かつrequest_idが一致するかチェック
+        if (data && typeof data === 'object' && data.request_id === requestId) {
+          settled = true;
+          clearTimeout(timeoutId);
+  
+          // isLoadingはここでfalseにするのがより安全
+          loyaltyState.isLoading = false;
+          
+          window.removeEventListener("message", messageHandler);
+          // formの削除は後続処理に影響を与えないよう、少し遅延させる
+          setTimeout(() => {
+              try { document.body.removeChild(form); } catch(e){}
+          }, 100);
+
+          resolve(data);
+        }
       };
 
       window.addEventListener("message", messageHandler);
