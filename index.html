@@ -1551,7 +1551,8 @@ window.onload = function() {
 
 
   /**
-   * Handle the registration/update button click (NOW with response handling)
+   * Handle the registration/update button click.
+   * This version uses try/catch to handle the promise-based API call.
    */
   async function handleRegister() {
     const userId = elements.userIdInput.value.trim();
@@ -1560,36 +1561,40 @@ window.onload = function() {
       return;
     }
 
-    // Show loading state
+    // Show loading state on the button
     elements.registerBtn.disabled = true;
     elements.registerBtn.textContent = "処理中...";
 
-    // Save userId locally immediately for optimistic feel
-    loyaltyState.userId = userId;
-    localStorage.setItem(LS_USER_ID_KEY, userId);
+    try {
+        // Save userId locally immediately for optimistic feel
+        localStorage.setItem(LS_USER_ID_KEY, userId);
+        loyaltyState.userId = userId;
 
-    const result = await callApiWithResponse('loyalty_register', {
-        userId: userId,
-        deviceId: loyaltyState.deviceId
-    });
+        // Call the new, robust API function and wait for the result
+        const result = await callApiWithResponse('loyalty_register', {
+            userId: userId,
+            // deviceId is now sent automatically by callApiWithResponse
+        });
 
-    // Restore button
-    elements.registerBtn.disabled = false;
-    elements.registerBtn.textContent = "登録/更新";
+        // SUCCESS: The API call was successful (result.ok was true).
+        // Update state from the registration response and show success message.
+        loyaltyState.points = result.points;
+        loyaltyState.coupons = result.coupons || [];
+        updateLoyaltyUI();
+        alert("ユーザー情報を登録/更新しました。");
 
-    if (result && result.ok) {
-      alert("ユーザー情報を登録/更新しました。");
-      // Update state from the successful registration response
-      loyaltyState.points = result.points;
-      loyaltyState.coupons = result.coupons || [];
-      updateLoyaltyUI();
-    } else {
-      alert("登録に失敗しました: " + (result?.error || "不明なエラー"));
-      // Rollback optimistic save if server failed
-      const oldUserId = localStorage.getItem(LS_USER_ID_KEY);
-      if(oldUserId !== userId){
-         loyaltyState.userId = oldUserId;
-      }
+    } catch (error) {
+        // FAILURE: The API call failed (threw an error).
+        // Log the technical error and show a user-friendly message.
+        console.error("登録/更新に失敗しました:", error);
+        alert("登録/更新に失敗しました: " + error.message);
+        
+        // Optional: You could add logic here to roll back the optimistic userId save if needed.
+
+    } finally {
+        // ALWAYS: This runs after try or catch, ensuring the UI is reset.
+        elements.registerBtn.disabled = false;
+        elements.registerBtn.textContent = "登録/更新";
     }
   }
   
@@ -1670,82 +1675,60 @@ window.onload = function() {
   }
   
   /**
-   * Calls API and expects a JSON response. Uses iframe post-messaging.
+   * Calls API using the modern fetch API, expecting a JSON response.
    */
-  function callApiWithResponse(action, payload = {}) {
-    return new Promise((resolve, reject) => {
-        if (loyaltyState.isLoading) {
-            resolve({ ok: false, error: 'busy' });
-            return;
-        }
-        loyaltyState.isLoading = true;
+  async function callApiWithResponse(action, payload = {}) {
+    // This function is now loading-aware.
+    if (loyaltyState.isLoading) {
+        return { ok: false, error: 'busy' };
+    }
+    loyaltyState.isLoading = true;
 
-        const requestId = newClientRequestId_();
-        const iframeName = `gas_target_${requestId}`;
-
-        // Create a temporary iframe for this specific call
-        const iframe = document.createElement('iframe');
-        iframe.name = iframeName;
-        iframe.style.display = 'none';
-
-        // Create a temporary form for this specific call
-        const form = document.createElement("form");
-        form.style.display = "none";
-        form.target = iframeName;
-        form.method = "POST";
-        form.action = LOYALTY_API_URL;
-
-        const fields = {
-            action: action, key: SITE_KEY, origin: location.origin,
-            request_id: requestId, deviceId: loyaltyState.deviceId, ...payload
-        };
-        for (const key in fields) {
-            if(fields[key] === undefined || fields[key] === null) continue;
-            const input = document.createElement("input");
-            input.type = "hidden"; input.name = key; input.value = fields[key];
-            form.appendChild(input);
-        }
-
-        let settled = false;
-        const cleanup = () => {
-            if (settled) return;
-            settled = true;
-            loyaltyState.isLoading = false;
-            window.removeEventListener("message", messageHandler);
-            clearTimeout(timeoutId);
-            // Clean up the temporary elements from the DOM
-            setTimeout(() => {
-                try { document.body.removeChild(iframe); } catch(e){}
-                try { document.body.removeChild(form); } catch(e){}
-            }, 100);
-        };
-
-        const timeoutId = setTimeout(() => {
-            cleanup();
-            reject(new Error("API response timeout"));
-        }, 10000);
-
-        const messageHandler = (event) => {
-            if (event.origin !== new URL(LOYALTY_API_URL).origin) return;
-            if (settled) return;
-
-            let data;
-            if (typeof event.data !== 'string') return;
-            try { data = JSON.parse(event.data); } catch (e) { return; }
-
-            if (data && typeof data === 'object' && data.request_id === requestId) {
-                cleanup();
-                resolve(data);
-            }
-        };
-
-        window.addEventListener("message", messageHandler);
-        
-        // Append temporary elements to the body and submit
-        document.body.appendChild(iframe);
-        document.body.appendChild(form);
-        form.submit();
+    // The endpoint and site key remain the same.
+    const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycby9gaUiKAulNEBM7QN8B4C9CWBkiiFYY0ZYHPhaVvWdnk9CcuvysZuwGFzusOE2m4oIUw/exec";
+    
+    // Create the body of the request as URL-encoded form data, mimicking the old form submission.
+    const formBody = new URLSearchParams({
+        action: action,
+        key: SITE_KEY,
+        origin: location.origin,
+        request_id: newClientRequestId_(),
+        deviceId: loyaltyState.deviceId,
+        ...payload
     });
+
+    try {
+        const response = await fetch(LOYALTY_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            },
+            body: formBody.toString(),
+            mode: 'cors', // Enable Cross-Origin Resource Sharing
+        });
+
+        if (!response.ok) {
+            throw new Error(`サーバーとの通信に失敗しました。ステータス: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.ok) {
+            // The API returns an object with `ok: true` on success. Return the whole object.
+            return data;
+        } else {
+            // The API returned `ok: false` or an error structure.
+            throw new Error(data.message || data.error || 'APIから定義済みのエラーが返されました。');
+        }
+
+    } catch (error) {
+        console.error('API呼び出し中に技術的なエラーが発生しました:', error);
+        // Re-throw the error so the calling function can handle it.
+        throw error;
+    } finally {
+        // No matter what happens, mark loading as complete.
+        loyaltyState.isLoading = false;
+    }
   }
 
 
