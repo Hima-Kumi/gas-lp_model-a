@@ -1553,6 +1553,7 @@ window.onload = function() {
   /**
    * Handle the registration/update button click with an Optimistic UI.
    * Provides immediate feedback and processes the API call in the background.
+   * DIAGNOSTIC VERSION: Includes error stack in alert.
    */
   function handleRegister() {
     const userId = elements.userIdInput.value.trim();
@@ -1564,12 +1565,14 @@ window.onload = function() {
     // --- Background Submission ---
     // START THE SUBMISSION FIRST, to ensure it's treated as a user-initiated event
     // before any blocking `alert` calls.
+    alert("DEBUG: handleRegister called. Starting API call...");
     callApiWithResponse('loyalty_register', {
         userId: userId,
         // deviceId is now sent automatically by callApiWithResponse
     })
     .then(result => {
         console.log("Background update successful:", result);
+        alert("DEBUG: API call successful in background!");
         if (result && result.ok) {
             // Silently update the UI with the latest data from the server
             loyaltyState.points = result.points;
@@ -1578,19 +1581,20 @@ window.onload = function() {
         } else {
             // The server responded with an error, log it.
             console.error("バックグラウンド更新でサーバーエラー:", result?.error);
+            alert("DEBUG: API call failed in background. Server error: " + result?.error);
         }
     })
     .catch(error => {
-        console.error("バックグラウンドでの更新に失敗しました:", error.message);
+        console.error("バックグラウンドでの更新に失敗しました:", error);
         // The API call itself failed (e.g., timeout).
-        // Since this is in the background, we don't show a disruptive alert.
+        alert("登録/更新に失敗しました (バックグラウンド処理):\n" + error.stack);
     });
 
     // --- Optimistic UI ---
     // NOW, show the user the optimistic message after dispatching the request.
     localStorage.setItem(LS_USER_ID_KEY, userId);
     loyaltyState.userId = userId;
-    alert("登録を受け付けました。ポイント情報はまもなく更新されます。");
+    alert("登録を受け付けました。ポイント情報はまもなく更新されます。\n\n(この後、数秒〜30秒ほどでデバッグメッセージが表示されない場合、リクエストが送信できていません)");
 
     // Briefly disable button and show processing state to prevent double-clicks
     elements.registerBtn.disabled = true;
@@ -1680,42 +1684,51 @@ window.onload = function() {
   /**
    * Calls API using a hidden iframe and postMessage, expecting a JSON response.
    * This version creates a temporary, unique iframe for each call to prevent conflicts.
+   * DIAGNOSTIC VERSION: Includes step-by-step alerts.
    */
   function callApiWithResponse(action, payload = {}) {
+    alert(`DEBUG: callApiWithResponse started for action: ${action}`);
     return new Promise((resolve, reject) => {
       // 1. Check for existing busy state
       if (loyaltyState.isLoading) {
+        // This shouldn't happen with the current UI, but as a safeguard:
+        alert("DEBUG: Error - A request is already in progress.");
         return reject(new Error("A request is already in progress."));
       }
       loyaltyState.isLoading = true;
 
       const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycby9gaUiKAulNEBM7QN8B4C9CWBkiiFYY0ZYHPhaVvWdnk9CcuvysZuwGFzusOE2m4oIUw/exec";
       const requestId = newClientRequestId_();
-      const iframeName = "gas_target_" + requestId; // Unique iframe name
+      const iframeName = "gas_target_" + requestId;
 
-      // Create a temporary iframe for this specific request
+      alert("DEBUG: Creating iframe and form...");
       const iframe = document.createElement('iframe');
       iframe.name = iframeName;
       iframe.style.display = 'none';
-      document.body.appendChild(iframe);
       
-      // Create a temporary form
+      let iframeLoaded = false;
+      iframe.onload = () => {
+          iframeLoaded = true;
+          alert("DEBUG: Iframe 'onload' event fired. The server was reached and responded with a page.");
+      };
+
+      document.body.appendChild(iframe);
+
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = LOYALTY_API_URL;
-      form.target = iframeName; // Target the unique iframe
+      form.target = iframeName;
       form.style.display = 'none';
 
       // 2. Populate form data
       const fields = {
         action: action,
         key: SITE_KEY,
-        origin: location.origin || '*', // Use wildcard for file:// to ensure postMessage works
+        origin: location.origin || '*',
         request_id: requestId,
         deviceId: loyaltyState.deviceId,
         ...payload
       };
-
       for (const key in fields) {
         if (fields[key] !== undefined) {
           const input = document.createElement('input');
@@ -1725,8 +1738,8 @@ window.onload = function() {
           form.appendChild(input);
         }
       }
-
       document.body.appendChild(form);
+      alert("DEBUG: Iframe and form added to DOM.");
 
       // 3. Setup message listener and cleanup logic
       let settled = false;
@@ -1735,20 +1748,16 @@ window.onload = function() {
           settled = true;
           window.removeEventListener('message', handleMessage);
           try { document.body.removeChild(form); } catch(e) {}
-          try { document.body.removeChild(iframe); } catch(e) {} // Also remove the iframe
+          try { document.body.removeChild(iframe); } catch(e) {}
           loyaltyState.isLoading = false;
       };
 
       const handleMessage = (event) => {
-        // Security: Check origin
-        if (event.origin !== new URL(LOYALTY_API_URL).origin) {
-          return;
-        }
-        
+        if (event.origin !== new URL(LOYALTY_API_URL).origin) return;
         try {
           const data = JSON.parse(event.data);
-          // Check if this message corresponds to our request
           if (data && data.request_id === requestId) {
+            alert("DEBUG: Received postMessage from iframe.");
             cleanup();
             if (data.ok) {
               resolve(data);
@@ -1756,23 +1765,36 @@ window.onload = function() {
               reject(new Error(data.message || data.error || 'APIからエラーが返されました。'));
             }
           }
-        } catch (e) {
-          // Ignore messages that are not valid JSON or don't match
-        }
+        } catch (e) {}
       };
-
       window.addEventListener('message', handleMessage);
 
       // 4. Submit the form
-      form.submit();
+      try {
+          alert("DEBUG: Attempting form.submit()...");
+          form.submit();
+          alert("DEBUG: form.submit() called without error.");
+      } catch (e) {
+          alert(`DEBUG: form.submit() FAILED with error: ${e.message}`);
+          cleanup();
+          reject(e);
+          return;
+      }
 
       // 5. Timeout handler
       setTimeout(() => {
         if (!settled) {
+          let timeout_msg = "サーバーからの応答がありませんでした (30秒タイムアウト)。";
+          if (iframeLoaded) {
+              timeout_msg += "\n\nサーバーには到達しましたが、応答内容が不正か、postMessageが失敗したようです。";
+          } else {
+              timeout_msg += "\n\nサーバーに到達できませんでした。リクエストがブラウザやネットワークによりブロックされた可能性があります。";
+          }
+          alert("DEBUG: Timeout reached. iframeLoaded = " + iframeLoaded);
           cleanup();
-          reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)"));
+          reject(new Error(timeout_msg));
         }
-      }, 30000); // 30-second timeout
+      }, 30000);
     });
   }
 
