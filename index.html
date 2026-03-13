@@ -1611,7 +1611,7 @@ window.onload = function() {
   async function handleCheckinFromToken(token){
     alert("チェックイン処理中です...");
     // We can't get a direct response, so we just fetch state after a delay
-    await callLoyaltyApi('loyalty_checkin', { token });
+    await callApiWithResponse('loyalty_checkin', { token });
     setTimeout(() => {
         elements.modal.style.display = 'block'; // Show modal to see result
         fetchState();
