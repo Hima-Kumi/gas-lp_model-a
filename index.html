@@ -1701,7 +1701,7 @@ window.onload = function() {
       const fields = {
         action: action,
         key: SITE_KEY,
-        origin: location.origin,
+        origin: location.origin || '*', // Use wildcard for file:// to ensure postMessage works
         request_id: requestId,
         deviceId: loyaltyState.deviceId,
         ...payload
@@ -1739,7 +1739,7 @@ window.onload = function() {
             if (data.ok) {
               resolve(data);
             } else {
-              reject(new Error(data.message || data.error || 'API returned an error.'));
+              reject(new Error(data.message || data.error || 'APIからエラーが返されました。'));
             }
           }
         } catch (e) {
@@ -1759,7 +1759,7 @@ window.onload = function() {
           window.removeEventListener('message', handleMessage);
           try { document.body.removeChild(form); } catch(e) {}
           loyaltyState.isLoading = false;
-          reject(new Error("登録/更新に失敗しました。：loard failed"));
+          reject(new Error("サーバーからの応答がありませんでした (タイムアウト)"));
         }
       }, 15000); // 15-second timeout
     });
