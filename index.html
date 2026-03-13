@@ -1561,23 +1561,9 @@ window.onload = function() {
       return;
     }
 
-    // --- Optimistic UI ---
-    // 1. Immediately save and give instant feedback
-    localStorage.setItem(LS_USER_ID_KEY, userId);
-    loyaltyState.userId = userId;
-    alert("登録を受け付けました。ポイント情報はまもなく更新されます。");
-
-    // 2. Briefly disable button and show processing state to prevent double-clicks
-    elements.registerBtn.disabled = true;
-    elements.registerBtn.textContent = "処理中...";
-    setTimeout(() => {
-        elements.registerBtn.disabled = false;
-        elements.registerBtn.textContent = "登録/更新";
-    }, 2500);
-
     // --- Background Submission ---
-    // 3. Call the API but don't wait for the result here.
-    //    Handle success and failure in the background.
+    // START THE SUBMISSION FIRST, to ensure it's treated as a user-initiated event
+    // before any blocking `alert` calls.
     callApiWithResponse('loyalty_register', {
         userId: userId,
         // deviceId is now sent automatically by callApiWithResponse
@@ -1599,6 +1585,20 @@ window.onload = function() {
         // The API call itself failed (e.g., timeout).
         // Since this is in the background, we don't show a disruptive alert.
     });
+
+    // --- Optimistic UI ---
+    // NOW, show the user the optimistic message after dispatching the request.
+    localStorage.setItem(LS_USER_ID_KEY, userId);
+    loyaltyState.userId = userId;
+    alert("登録を受け付けました。ポイント情報はまもなく更新されます。");
+
+    // Briefly disable button and show processing state to prevent double-clicks
+    elements.registerBtn.disabled = true;
+    elements.registerBtn.textContent = "処理中...";
+    setTimeout(() => {
+        elements.registerBtn.disabled = false;
+        elements.registerBtn.textContent = "登録/更新";
+    }, 2500);
   }
   
   /**
