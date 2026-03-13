@@ -1675,60 +1675,94 @@ window.onload = function() {
   }
   
   /**
-   * Calls API using the modern fetch API, expecting a JSON response.
+   * Calls API using a hidden iframe and postMessage, expecting a JSON response.
+   * This is the correct way to communicate with the GAS backend in this app.
    */
-  async function callApiWithResponse(action, payload = {}) {
-    // This function is now loading-aware.
-    if (loyaltyState.isLoading) {
-        return { ok: false, error: 'busy' };
-    }
-    loyaltyState.isLoading = true;
+  function callApiWithResponse(action, payload = {}) {
+    return new Promise((resolve, reject) => {
+      // 1. Check for existing busy state
+      if (loyaltyState.isLoading) {
+        return reject(new Error("A request is already in progress."));
+      }
+      loyaltyState.isLoading = true;
 
-    // The endpoint and site key remain the same.
-    const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycby9gaUiKAulNEBM7QN8B4C9CWBkiiFYY0ZYHPhaVvWdnk9CcuvysZuwGFzusOE2m4oIUw/exec";
-    
-    // Create the body of the request as URL-encoded form data, mimicking the old form submission.
-    const formBody = new URLSearchParams({
+      const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycby9gaUiKAulNEBM7QN8B4C9CWBkiiFYY0ZYHPhaVvWdnk9CcuvysZuwGFzusOE2m4oIUw/exec";
+      const requestId = newClientRequestId_();
+      const iframeName = "gasFormTarget";
+      
+      // Create a temporary form
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = LOYALTY_API_URL;
+      form.target = iframeName;
+      form.style.display = 'none';
+
+      // 2. Populate form data
+      const fields = {
         action: action,
         key: SITE_KEY,
         origin: location.origin,
-        request_id: newClientRequestId_(),
+        request_id: requestId,
         deviceId: loyaltyState.deviceId,
         ...payload
+      };
+
+      for (const key in fields) {
+        if (fields[key] !== undefined) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = fields[key];
+          form.appendChild(input);
+        }
+      }
+
+      document.body.appendChild(form);
+
+      // 3. Setup message listener
+      let settled = false;
+      const handleMessage = (event) => {
+        // Security: Check origin
+        if (event.origin !== new URL(LOYALTY_API_URL).origin) {
+          return;
+        }
+        
+        try {
+          const data = JSON.parse(event.data);
+          // Check if this message corresponds to our request
+          if (data && data.request_id === requestId) {
+            settled = true;
+            window.removeEventListener('message', handleMessage);
+            document.body.removeChild(form);
+            loyaltyState.isLoading = false;
+
+            if (data.ok) {
+              resolve(data);
+            } else {
+              reject(new Error(data.message || data.error || 'API returned an error.'));
+            }
+          }
+        } catch (e) {
+          // Ignore messages that are not valid JSON or don't match
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      // 4. Submit the form
+      form.submit();
+
+      // 5. Timeout handler
+      setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          window.removeEventListener('message', handleMessage);
+          try { document.body.removeChild(form); } catch(e) {}
+          loyaltyState.isLoading = false;
+          reject(new Error("登録/更新に失敗しました。：loard failed"));
+        }
+      }, 15000); // 15-second timeout
     });
-
-    try {
-        const response = await fetch(LOYALTY_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-            },
-            body: formBody.toString(),
-            mode: 'cors', // Enable Cross-Origin Resource Sharing
-        });
-
-        if (!response.ok) {
-            throw new Error(`サーバーとの通信に失敗しました。ステータス: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.ok) {
-            // The API returns an object with `ok: true` on success. Return the whole object.
-            return data;
-        } else {
-            // The API returned `ok: false` or an error structure.
-            throw new Error(data.message || data.error || 'APIから定義済みのエラーが返されました。');
-        }
-
-    } catch (error) {
-        console.error('API呼び出し中に技術的なエラーが発生しました:', error);
-        // Re-throw the error so the calling function can handle it.
-        throw error;
-    } finally {
-        // No matter what happens, mark loading as complete.
-        loyaltyState.isLoading = false;
-    }
   }
 
 
