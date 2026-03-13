@@ -1632,8 +1632,14 @@ window.onload = function() {
 
     // 3. Add event listeners
     elements.openBtn?.addEventListener('click', () => {
-      // elements.modal.style.display is handled by other script, just fetch
-      fetchState(); // Fetch latest state when modal is opened
+      //
+      // ★RACE CONDITION FIX:
+      // Only fetch state if a user ID already exists.
+      // Do not fetch for new users, as this would conflict with the registration call.
+      //
+      if (loyaltyState.userId) {
+        fetchState(); // Fetch latest state when modal is opened for an existing user.
+      }
     });
     elements.registerBtn?.addEventListener('click', handleRegister);
 
