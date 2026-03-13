@@ -1551,51 +1551,54 @@ window.onload = function() {
 
 
   /**
-   * Handle the registration/update button click.
-   * This version uses try/catch to handle the promise-based API call.
+   * Handle the registration/update button click with an Optimistic UI.
+   * Provides immediate feedback and processes the API call in the background.
    */
-  async function handleRegister() {
+  function handleRegister() {
     const userId = elements.userIdInput.value.trim();
     if (!userId) {
       alert("電話番号またはメールアドレスを入力してください。");
       return;
     }
 
-    // Show loading state on the button
+    // --- Optimistic UI ---
+    // 1. Immediately save and give instant feedback
+    localStorage.setItem(LS_USER_ID_KEY, userId);
+    loyaltyState.userId = userId;
+    alert("登録を受け付けました。ポイント情報はまもなく更新されます。");
+
+    // 2. Briefly disable button and show processing state to prevent double-clicks
     elements.registerBtn.disabled = true;
     elements.registerBtn.textContent = "処理中...";
-
-    try {
-        // Save userId locally immediately for optimistic feel
-        localStorage.setItem(LS_USER_ID_KEY, userId);
-        loyaltyState.userId = userId;
-
-        // Call the new, robust API function and wait for the result
-        const result = await callApiWithResponse('loyalty_register', {
-            userId: userId,
-            // deviceId is now sent automatically by callApiWithResponse
-        });
-
-        // SUCCESS: The API call was successful (result.ok was true).
-        // Update state from the registration response and show success message.
-        loyaltyState.points = result.points;
-        loyaltyState.coupons = result.coupons || [];
-        updateLoyaltyUI();
-        alert("ユーザー情報を登録/更新しました。");
-
-    } catch (error) {
-        // FAILURE: The API call failed (threw an error).
-        // Log the technical error and show a user-friendly message.
-        console.error("登録/更新に失敗しました:", error);
-        alert("登録/更新に失敗しました: " + error.message);
-        
-        // Optional: You could add logic here to roll back the optimistic userId save if needed.
-
-    } finally {
-        // ALWAYS: This runs after try or catch, ensuring the UI is reset.
+    setTimeout(() => {
         elements.registerBtn.disabled = false;
         elements.registerBtn.textContent = "登録/更新";
-    }
+    }, 2500);
+
+    // --- Background Submission ---
+    // 3. Call the API but don't wait for the result here.
+    //    Handle success and failure in the background.
+    callApiWithResponse('loyalty_register', {
+        userId: userId,
+        // deviceId is now sent automatically by callApiWithResponse
+    })
+    .then(result => {
+        console.log("Background update successful:", result);
+        if (result && result.ok) {
+            // Silently update the UI with the latest data from the server
+            loyaltyState.points = result.points;
+            loyaltyState.coupons = result.coupons || [];
+            updateLoyaltyUI();
+        } else {
+            // The server responded with an error, log it.
+            console.error("バックグラウンド更新でサーバーエラー:", result?.error);
+        }
+    })
+    .catch(error => {
+        console.error("バックグラウンドでの更新に失敗しました:", error.message);
+        // The API call itself failed (e.g., timeout).
+        // Since this is in the background, we don't show a disruptive alert.
+    });
   }
   
   /**
@@ -1676,7 +1679,7 @@ window.onload = function() {
   
   /**
    * Calls API using a hidden iframe and postMessage, expecting a JSON response.
-   * This is the correct way to communicate with the GAS backend in this app.
+   * This version creates a temporary, unique iframe for each call to prevent conflicts.
    */
   function callApiWithResponse(action, payload = {}) {
     return new Promise((resolve, reject) => {
@@ -1688,13 +1691,19 @@ window.onload = function() {
 
       const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycby9gaUiKAulNEBM7QN8B4C9CWBkiiFYY0ZYHPhaVvWdnk9CcuvysZuwGFzusOE2m4oIUw/exec";
       const requestId = newClientRequestId_();
-      const iframeName = "gasFormTarget";
+      const iframeName = "gas_target_" + requestId; // Unique iframe name
+
+      // Create a temporary iframe for this specific request
+      const iframe = document.createElement('iframe');
+      iframe.name = iframeName;
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
       
       // Create a temporary form
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = LOYALTY_API_URL;
-      form.target = iframeName;
+      form.target = iframeName; // Target the unique iframe
       form.style.display = 'none';
 
       // 2. Populate form data
@@ -1719,8 +1728,17 @@ window.onload = function() {
 
       document.body.appendChild(form);
 
-      // 3. Setup message listener
+      // 3. Setup message listener and cleanup logic
       let settled = false;
+      const cleanup = () => {
+          if (settled) return;
+          settled = true;
+          window.removeEventListener('message', handleMessage);
+          try { document.body.removeChild(form); } catch(e) {}
+          try { document.body.removeChild(iframe); } catch(e) {} // Also remove the iframe
+          loyaltyState.isLoading = false;
+      };
+
       const handleMessage = (event) => {
         // Security: Check origin
         if (event.origin !== new URL(LOYALTY_API_URL).origin) {
@@ -1731,11 +1749,7 @@ window.onload = function() {
           const data = JSON.parse(event.data);
           // Check if this message corresponds to our request
           if (data && data.request_id === requestId) {
-            settled = true;
-            window.removeEventListener('message', handleMessage);
-            document.body.removeChild(form);
-            loyaltyState.isLoading = false;
-
+            cleanup();
             if (data.ok) {
               resolve(data);
             } else {
@@ -1755,13 +1769,10 @@ window.onload = function() {
       // 5. Timeout handler
       setTimeout(() => {
         if (!settled) {
-          settled = true;
-          window.removeEventListener('message', handleMessage);
-          try { document.body.removeChild(form); } catch(e) {}
-          loyaltyState.isLoading = false;
-          reject(new Error("サーバーからの応答がありませんでした (タイムアウト)"));
+          cleanup();
+          reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)"));
         }
-      }, 15000); // 15-second timeout
+      }, 30000); // 30-second timeout
     });
   }
 
