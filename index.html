@@ -1494,7 +1494,7 @@ window.onload = function() {
 
     // Update coupon list
     if (elements.couponList) {
-        if (loyaltyState.isLoading) {
+        if (loyaltyState.isLoading && loyaltyState.coupons.length === 0) { // Only show loading if no coupons are currently displayed
             elements.couponList.innerHTML = '<p class="muted">読み込んでいます...</p>';
         } else if (loyaltyState.coupons && loyaltyState.coupons.length > 0) {
             elements.couponList.innerHTML = ''; // Clear existing
@@ -1528,94 +1528,86 @@ window.onload = function() {
       return;
     }
 
-    loyaltyState.isLoading = true;
-    updateLoyaltyUI(); // Show loading state
-
-    const result = await callApiWithResponse('loyalty_get_state', { userId: loyaltyState.userId });
-    loyaltyState.isLoading = false;
-
-    if (result && result.ok) {
-      loyaltyState.points = result.points;
-      loyaltyState.coupons = result.coupons || [];
-    } else {
-      // If user not found on server, reset local state
-      if (result && result.error === 'user_not_found') {
-          loyaltyState.points = 0;
-          loyaltyState.coupons = [];
-      }
-      // Otherwise, just log error and keep stale data
-      console.error("Failed to fetch state:", result?.error);
+    try {
+        const result = await callApiWithResponse('loyalty_get_state', { userId: loyaltyState.userId });
+        if (result && result.ok) {
+          updateLoyaltyState(result);
+        } else {
+           console.error("Failed to fetch state:", result?.error);
+        }
+    } catch (error) {
+        console.error("Error during fetchState:", error);
     }
-    updateLoyaltyUI();
+  }
+
+  /**
+   * Helper to update local state and UI from an API response
+   */
+  function updateLoyaltyState(apiResponse) {
+      loyaltyState.points = apiResponse.points || 0;
+      loyaltyState.coupons = apiResponse.coupons || [];
+      // Also update userId in case it was a new registration
+      if(apiResponse.userId) {
+          loyaltyState.userId = apiResponse.userId;
+          localStorage.setItem(LS_USER_ID_KEY, apiResponse.userId);
+      }
+      updateLoyaltyUI();
   }
 
 
   /**
-   * Handle the registration/update button click with an Optimistic UI.
-   * Provides immediate feedback and processes the API call in the background.
-   * DIAGNOSTIC VERSION: Includes error stack in alert.
+   * Handle the registration/update button click.
+   * This version is a clean async/await function.
    */
-  function handleRegister() {
+  async function handleRegister() {
     const userId = elements.userIdInput.value.trim();
     if (!userId) {
       alert("電話番号またはメールアドレスを入力してください。");
       return;
     }
 
-    // --- Background Submission ---
-    // START THE SUBMISSION FIRST, to ensure it's treated as a user-initiated event
-    // before any blocking `alert` calls.
-    alert("DEBUG: handleRegister called. Starting API call...");
-    callApiWithResponse('loyalty_register', {
-        userId: userId,
-        // deviceId is now sent automatically by callApiWithResponse
-    })
-    .then(result => {
-        console.log("Background update successful:", result);
-        alert("DEBUG: API call successful in background!");
-        if (result && result.ok) {
-            // Silently update the UI with the latest data from the server
-            loyaltyState.points = result.points;
-            loyaltyState.coupons = result.coupons || [];
-            updateLoyaltyUI();
-        } else {
-            // The server responded with an error, log it.
-            console.error("バックグラウンド更新でサーバーエラー:", result?.error);
-            alert("DEBUG: API call failed in background. Server error: " + result?.error);
-        }
-    })
-    .catch(error => {
-        console.error("バックグラウンドでの更新に失敗しました:", error);
-        // The API call itself failed (e.g., timeout).
-        alert("登録/更新に失敗しました (バックグラウンド処理):\n" + error.stack);
-    });
-
-    // --- Optimistic UI ---
-    // NOW, show the user the optimistic message after dispatching the request.
-    localStorage.setItem(LS_USER_ID_KEY, userId);
-    loyaltyState.userId = userId;
-    alert("登録を受け付けました。ポイント情報はまもなく更新されます。\n\n(この後、数秒〜30秒ほどでデバッグメッセージが表示されない場合、リクエストが送信できていません)");
-
-    // Briefly disable button and show processing state to prevent double-clicks
+    // Disable button to prevent double-clicks
     elements.registerBtn.disabled = true;
     elements.registerBtn.textContent = "処理中...";
-    setTimeout(() => {
-        elements.registerBtn.disabled = false;
-        elements.registerBtn.textContent = "登録/更新";
-    }, 2500);
+
+    try {
+      console.log("DEBUG: handleRegister called for userId:", userId);
+      const response = await callApiWithResponse('loyalty_register', {
+        userId: userId,
+      });
+
+      console.log("DEBUG: Registration API successful, response:", response);
+      
+      // The server returns the latest state, so we just update the UI
+      updateLoyaltyState(response);
+
+      alert("登録/更新が完了しました。");
+
+    } catch (error) {
+      console.error("DEBUG: Registration API failed:", error);
+      alert("登録/更新に失敗しました。\nエラー: " + error.message);
+    } finally {
+      // Re-enable button
+      elements.registerBtn.disabled = false;
+      elements.registerBtn.textContent = "登録/更新";
+    }
   }
   
   /**
-   * Handle check-in from a URL token
+   * Handle check-in from a URL token (legacy QR code scanner)
    */
   async function handleCheckinFromToken(token){
     alert("チェックイン処理中です...");
-    // We can't get a direct response, so we just fetch state after a delay
-    await callApiWithResponse('loyalty_checkin', { token });
-    setTimeout(() => {
-        elements.modal.style.display = 'block'; // Show modal to see result
-        fetchState();
-    }, 2000);
+    try {
+        // We can't get a direct response, so we just fetch state after a delay
+        await callApiWithResponse('loyalty_checkin', { token });
+        setTimeout(() => {
+            elements.modal.style.display='block'; // Show modal to see result
+            fetchState(); // Fetch updated state
+        }, 2000);
+    } catch (error) {
+        alert("チェックインに失敗しました: " + error.message);
+    }
   }
 
 
@@ -1664,137 +1656,147 @@ window.onload = function() {
       // Show a loading indicator
       alert("チェックイン処理中...");
 
-      const result = await callApiWithResponse("loyalty_checkin_from_qr", { token: token });
+      try {
+        const result = await callApiWithResponse("loyalty_checkin_from_qr", { token: token });
 
-      if (result && result.ok) {
-        alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
-        // Update state and UI from response
-        loyaltyState.points = result.points;
-        loyaltyState.coupons = result.coupons || [];
-        loyaltyState.userId = result.userId;
-        if(elements.userIdInput) elements.userIdInput.value = result.userId;
-        updateLoyaltyUI();
-        elements.modal.style.display = 'block'; // Show modal to see result
-      } else {
-        alert("チェックインエラー: " + (result?.message || result?.error || "不明なエラー"));
+        if (result && result.ok) {
+          alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
+          // Update state and UI from response
+          updateLoyaltyState(result);
+          elements.modal.style.display = 'block'; // Show modal to see result
+        } else {
+          alert("チェックインエラー: " + (result?.message || result?.error || "不明なエラー"));
+        }
+      } catch (error) {
+        alert("チェックインに失敗しました: " + error.message);
       }
     }
   }
   
   /**
    * Calls API using a hidden iframe and postMessage, expecting a JSON response.
-   * This version creates a temporary, unique iframe for each call to prevent conflicts.
-   * DIAGNOSTIC VERSION: Includes step-by-step alerts.
+   * This is the core communication function.
+   * DIAGNOSTIC VERSION: Uses console.log for non-blocking diagnostics.
    */
   function callApiWithResponse(action, payload = {}) {
-    alert(`DEBUG: callApiWithResponse started for action: ${action}`);
+    console.log(`DEBUG: callApiWithResponse started for action: ${action}`, payload);
+
     return new Promise((resolve, reject) => {
-      // 1. Check for existing busy state
       if (loyaltyState.isLoading) {
-        // This shouldn't happen with the current UI, but as a safeguard:
-        alert("DEBUG: Error - A request is already in progress.");
+        console.error("DEBUG: Error - A request is already in progress.");
         return reject(new Error("A request is already in progress."));
       }
       loyaltyState.isLoading = true;
 
-      const LOYALTY_API_URL = "https://script.google.com/macros/s/AKfycby9gaUiKAulNEBM7QN8B4C9CWBkiiFYY0ZYHPhaVvWdnk9CcuvysZuwGFzusOE2m4oIUw/exec";
       const requestId = newClientRequestId_();
       const iframeName = "gas_target_" + requestId;
-
-      alert("DEBUG: Creating iframe and form...");
-      const iframe = document.createElement('iframe');
-      iframe.name = iframeName;
-      iframe.style.display = 'none';
+      let form, iframe;
       
-      let iframeLoaded = false;
-      iframe.onload = () => {
-          iframeLoaded = true;
-          alert("DEBUG: Iframe 'onload' event fired. The server was reached and responded with a page.");
-      };
-
-      document.body.appendChild(iframe);
-
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = LOYALTY_API_URL;
-      form.target = iframeName;
-      form.style.display = 'none';
-
-      // 2. Populate form data
-      const fields = {
-        action: action,
-        key: SITE_KEY,
-        origin: location.origin || '*',
-        request_id: requestId,
-        deviceId: loyaltyState.deviceId,
-        ...payload
-      };
-      for (const key in fields) {
-        if (fields[key] !== undefined) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = fields[key];
-          form.appendChild(input);
-        }
-      }
-      document.body.appendChild(form);
-      alert("DEBUG: Iframe and form added to DOM.");
-
-      // 3. Setup message listener and cleanup logic
       let settled = false;
       const cleanup = () => {
-          if (settled) return;
-          settled = true;
-          window.removeEventListener('message', handleMessage);
-          try { document.body.removeChild(form); } catch(e) {}
-          try { document.body.removeChild(iframe); } catch(e) {}
-          loyaltyState.isLoading = false;
+        if (settled) return;
+        settled = true;
+        
+        console.log(`DEBUG: [${requestId}] Cleaning up...`);
+        window.removeEventListener('message', handleMessage);
+        clearTimeout(timeoutId);
+        
+        if (form && form.parentNode) form.parentNode.removeChild(form);
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        
+        loyaltyState.isLoading = false;
+        console.log(`DEBUG: [${requestId}] Cleanup complete.`);
       };
 
       const handleMessage = (event) => {
-        if (event.origin !== new URL(LOYALTY_API_URL).origin) return;
+        // --- Universal Message Logger for Deep Debugging ---
+        console.log(`DEBUG: [RAW MESSAGE EVENT]`, {
+          origin: event.origin,
+          source: event.source === window.parent ? "parent" : "iframe/other",
+          data: event.data,
+          dataType: typeof event.data,
+        });
+
+        let data;
+        // The message from GAS should be a stringified JSON.
+        if (typeof event.data !== 'string') {
+          console.log(`DEBUG: Ignored message because event.data is not a string.`);
+          return;
+        }
+
         try {
-          const data = JSON.parse(event.data);
-          if (data && data.request_id === requestId) {
-            alert("DEBUG: Received postMessage from iframe.");
-            cleanup();
-            if (data.ok) {
-              resolve(data);
-            } else {
-              reject(new Error(data.message || data.error || 'APIからエラーが返されました。'));
-            }
+          data = JSON.parse(event.data);
+        } catch (e) {
+          console.log(`DEBUG: Ignored message because event.data was not valid JSON.`);
+          return;
+        }
+
+        // Check if this message is the response we are waiting for
+        if (data && data.request_id === requestId) {
+          console.log(`DEBUG: [${requestId}] Successfully matched API response:`, data);
+          
+          cleanup(); // Stop the timeout and remove listeners/elements
+
+          if (data.ok) {
+            resolve(data);
+          } else {
+            // The server explicitly responded with an error
+            const serverError = new Error(data.message || data.error || 'APIからエラーが返されました。');
+            serverError.stack = data.stack || serverError.stack; // Attach server stack if available
+            reject(serverError);
           }
-        } catch (e) {}
+        } else {
+          // This message was for a different request or malformed, ignore it.
+          console.log(`DEBUG: Ignored message because request_id did not match (expected: ${requestId}, received: ${data?.request_id}).`);
+        }
       };
+
+      const timeoutId = setTimeout(() => {
+        console.error(`DEBUG: [${requestId}] API call timed out.`);
+        reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
+        cleanup();
+      }, 30000);
+
       window.addEventListener('message', handleMessage);
 
-      // 4. Submit the form
       try {
-          alert("DEBUG: Attempting form.submit()...");
-          form.submit();
-          alert("DEBUG: form.submit() called without error.");
-      } catch (e) {
-          alert(`DEBUG: form.submit() FAILED with error: ${e.message}`);
-          cleanup();
-          reject(e);
-          return;
-      }
+        iframe = document.createElement('iframe');
+        iframe.name = iframeName;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
 
-      // 5. Timeout handler
-      setTimeout(() => {
-        if (!settled) {
-          let timeout_msg = "サーバーからの応答がありませんでした (30秒タイムアウト)。";
-          if (iframeLoaded) {
-              timeout_msg += "\n\nサーバーには到達しましたが、応答内容が不正か、postMessageが失敗したようです。";
-          } else {
-              timeout_msg += "\n\nサーバーに到達できませんでした。リクエストがブラウザやネットワークによりブロックされた可能性があります。";
+        form = document.createElement('form');
+        form.method = 'POST';
+        form.action = LOYALTY_API_URL;
+        form.target = iframeName;
+
+        const fields = {
+          action,
+          key: SITE_KEY,
+          origin: location.origin || '*',
+          request_id: requestId,
+          deviceId: loyaltyState.deviceId,
+          ...payload
+        };
+
+        for (const key in fields) {
+          if (fields[key] !== undefined) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = fields[key];
+            form.appendChild(input);
           }
-          alert("DEBUG: Timeout reached. iframeLoaded = " + iframeLoaded);
-          cleanup();
-          reject(new Error(timeout_msg));
         }
-      }, 30000);
+        document.body.appendChild(form);
+
+        console.log(`DEBUG: [${requestId}] Submitting form...`);
+        form.submit();
+      } catch (e) {
+        console.error(`DEBUG: [${requestId}] Error setting up form submission:`, e);
+        reject(e);
+        cleanup();
+      }
     });
   }
 
