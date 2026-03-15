@@ -1254,6 +1254,7 @@
 </div>
 
 <!-- service workerへのリンク -->
+<!--
 <script>
   // file:// プロトコル等ではPWA機能（Manifest/ServiceWorker）が動作しないため、
   // http/httpsの時のみ実行・読み込みを行うようガードします（これでローカルのエラーが消えます）
@@ -1270,6 +1271,7 @@
     }
   }
 </script>
+-->
 
 <style>
 /* PWAインストール誘導ポップアップのスタイル（改善版） */
@@ -1434,7 +1436,6 @@ window.onload = function() {
     points: 0,
     coupons: [],
     isLoading: false,
-    isRegistering: false,
   };
 
   // DOM elements
@@ -1498,9 +1499,6 @@ window.onload = function() {
    * Fetches the latest state from the server
    */
   async function fetchState() {
-    if (loyaltyState.isRegistering) {
-      return; // 登録処理中は状態取得をキャンセル
-    }
     if (!loyaltyState.userId) {
       // If there's no user, just ensure the UI is in a logged-out state
       loyaltyState.points = 0;
@@ -1548,7 +1546,6 @@ window.onload = function() {
     }
 
     // Disable button to prevent double-clicks
-    loyaltyState.isRegistering = true;
     elements.registerBtn.disabled = true;
     elements.registerBtn.textContent = "処理中...";
 
@@ -1565,8 +1562,7 @@ window.onload = function() {
     } catch (error) {
       alert("登録/更新に失敗しました。\nエラー: " + error.message);
     } finally {
-      // Re-enable button and release lock
-      loyaltyState.isRegistering = false;
+      // Re-enable button
       elements.registerBtn.disabled = false;
       elements.registerBtn.textContent = "登録/更新";
     }
