@@ -442,9 +442,6 @@
 
     const CACHE_TTL_MS = 10 * 60 * 1000;
     const params = new URLSearchParams(location.search);
-    const FORCE = params.get("force") === "1";
-    const RESET = params.get("reset") === "1";
-    const DEBUG = params.get("debug") === "1";
 
     const apiSig = `${PUBLIC_API_URL}@${location.origin}`;
     const CACHE_BASE = `sitecache:v1:${apiSig}:key=${SITE_KEY}`;
@@ -725,17 +722,7 @@
       }catch(e){}
     }
 
-    function renderDebug(meta, source){
-      if(!DEBUG) return;
-      let el = document.getElementById("debug-version");
-      if(!el){
-        el = document.createElement("div");
-        el.id = "debug-version";
-        el.style.cssText = "position:fixed;bottom:8px;right:8px;z-index:9999;padding:6px 10px;border-radius:10px;background:#0008;color:#fff;font:12px/1.3 system-ui;";
-        document.body.appendChild(el);
-      }
-      el.textContent = `v=${meta?.version ?? "?"} (${source}) ${meta?.updated_at ?? ""}`;
-    }
+
 
     (function injectFormGridCss(){
       const style = document.createElement('style');
@@ -876,21 +863,17 @@
       setHeaderHeightVar();
       window.addEventListener('resize', setHeaderHeightVar);
 
-      if(RESET){ clearNormalizedCache(); }
-
       const norm = readNormalizedCache();
-      if(norm && !FORCE){
+      if (norm) {
         applyData(normalizeForView(norm.site));
-        renderDebug(norm.meta, norm.fresh ? "cache" : "stale-cache");
       } else {
         const storedObj = loadLS(STORAGE_KEY);
         applyData(normalizeForView(storedObj || {}));
-        renderDebug({version:"(legacy)"}, "legacy");
       }
 
       const lastCheckAt = Number(localStorage.getItem(LS_LAST_CHECK) || 0);
       const needCheckByInterval = (Date.now() - lastCheckAt) > CHECK_TTL_MS;
-      const shouldFetch = FORCE || !norm || !norm.fresh || needCheckByInterval;
+      const shouldFetch = !norm || !norm.fresh || needCheckByInterval;
 
       if (shouldFetch) {
         try { localStorage.setItem(LS_LAST_CHECK, String(Date.now())); } catch (e) {}
@@ -902,23 +885,17 @@
           const serverVer = vNum(serverMeta.version);
           const cacheVer  = vNum(norm?.meta?.version);
 
-          if (FORCE || !norm || serverVer > cacheVer) {
+          if (!norm || serverVer > cacheVer) {
             applyData(normalizeForView(remote.data));
-            renderDebug(serverMeta, "server");
             writeNormalizedCache(remote.data, serverMeta);
             saveLS(STORAGE_KEY, remote.data);
             saveLS(LS_CACHE_KEY, remote.data);
-          } else {
-            renderDebug(norm?.meta, "cache-kept");
           }
         } else {
           const cachedOld = loadLS(LS_CACHE_KEY);
           if (!norm && cachedOld) {
             applyData(normalizeForView(cachedOld));
             saveLS(STORAGE_KEY, cachedOld);
-            renderDebug({ version: "(old-cache)" }, "old-cache");
-          } else {
-            renderDebug({ version: "ERR" }, "server-fail");
           }
         }
       }
@@ -1457,6 +1434,7 @@ window.onload = function() {
     points: 0,
     coupons: [],
     isLoading: false,
+    isRegistering: false,
   };
 
   // DOM elements
@@ -1520,6 +1498,9 @@ window.onload = function() {
    * Fetches the latest state from the server
    */
   async function fetchState() {
+    if (loyaltyState.isRegistering) {
+      return; // 登録処理中は状態取得をキャンセル
+    }
     if (!loyaltyState.userId) {
       // If there's no user, just ensure the UI is in a logged-out state
       loyaltyState.points = 0;
@@ -1533,10 +1514,10 @@ window.onload = function() {
         if (result && result.ok) {
           updateLoyaltyState(result);
         } else {
-           console.error("Failed to fetch state:", result?.error);
+           // Failed to fetch state, do nothing, error is handled by callApiWithResponse reject
         }
     } catch (error) {
-        console.error("Error during fetchState:", error);
+        // Error is handled by callApiWithResponse reject, maybe show a generic error to user
     }
   }
 
@@ -1567,16 +1548,14 @@ window.onload = function() {
     }
 
     // Disable button to prevent double-clicks
+    loyaltyState.isRegistering = true;
     elements.registerBtn.disabled = true;
     elements.registerBtn.textContent = "処理中...";
 
     try {
-      console.log("DEBUG: handleRegister called for userId:", userId);
       const response = await callApiWithResponse('loyalty_register', {
         userId: userId,
       });
-
-      console.log("DEBUG: Registration API successful, response:", response);
       
       // The server returns the latest state, so we just update the UI
       updateLoyaltyState(response);
@@ -1584,10 +1563,10 @@ window.onload = function() {
       alert("登録/更新が完了しました。");
 
     } catch (error) {
-      console.error("DEBUG: Registration API failed:", error);
       alert("登録/更新に失敗しました。\nエラー: " + error.message);
     } finally {
-      // Re-enable button
+      // Re-enable button and release lock
+      loyaltyState.isRegistering = false;
       elements.registerBtn.disabled = false;
       elements.registerBtn.textContent = "登録/更新";
     }
@@ -1685,11 +1664,8 @@ window.onload = function() {
    * DIAGNOSTIC VERSION: Uses console.log for non-blocking diagnostics.
    */
   function callApiWithResponse(action, payload = {}) {
-    console.log(`DEBUG: callApiWithResponse started for action: ${action}`, payload);
-
     return new Promise((resolve, reject) => {
       if (loyaltyState.isLoading) {
-        console.error("DEBUG: Error - A request is already in progress.");
         return reject(new Error("A request is already in progress."));
       }
       loyaltyState.isLoading = true;
@@ -1703,7 +1679,6 @@ window.onload = function() {
         if (settled) return;
         settled = true;
         
-        console.log(`DEBUG: [${requestId}] Cleaning up...`);
         window.removeEventListener('message', handleMessage);
         clearTimeout(timeoutId);
         
@@ -1711,54 +1686,34 @@ window.onload = function() {
         if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
         
         loyaltyState.isLoading = false;
-        console.log(`DEBUG: [${requestId}] Cleanup complete.`);
       };
 
       const handleMessage = (event) => {
-        // --- Universal Message Logger for Deep Debugging ---
-        console.log(`DEBUG: [RAW MESSAGE EVENT]`, {
-          origin: event.origin,
-          source: event.source === window.parent ? "parent" : "iframe/other",
-          data: event.data,
-          dataType: typeof event.data,
-        });
-
         let data;
-        // The message from GAS should be a stringified JSON.
         if (typeof event.data !== 'string') {
-          console.log(`DEBUG: Ignored message because event.data is not a string.`);
           return;
         }
 
         try {
           data = JSON.parse(event.data);
         } catch (e) {
-          console.log(`DEBUG: Ignored message because event.data was not valid JSON.`);
           return;
         }
 
-        // Check if this message is the response we are waiting for
         if (data && data.request_id === requestId) {
-          console.log(`DEBUG: [${requestId}] Successfully matched API response:`, data);
-          
-          cleanup(); // Stop the timeout and remove listeners/elements
+          cleanup();
 
           if (data.ok) {
             resolve(data);
           } else {
-            // The server explicitly responded with an error
             const serverError = new Error(data.message || data.error || 'APIからエラーが返されました。');
-            serverError.stack = data.stack || serverError.stack; // Attach server stack if available
+            serverError.stack = data.stack || serverError.stack;
             reject(serverError);
           }
-        } else {
-          // This message was for a different request or malformed, ignore it.
-          console.log(`DEBUG: Ignored message because request_id did not match (expected: ${requestId}, received: ${data?.request_id}).`);
         }
       };
 
       const timeoutId = setTimeout(() => {
-        console.error(`DEBUG: [${requestId}] API call timed out.`);
         reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
         cleanup();
       }, 30000);
@@ -1796,10 +1751,8 @@ window.onload = function() {
         }
         document.body.appendChild(form);
 
-        console.log(`DEBUG: [${requestId}] Submitting form...`);
         form.submit();
       } catch (e) {
-        console.error(`DEBUG: [${requestId}] Error setting up form submission:`, e);
         reject(e);
         cleanup();
       }
@@ -1813,15 +1766,7 @@ window.onload = function() {
 })();
 </script>
 
-<!-- ================================================================== -->
-<!--  キャッシュ検証用スクリプト (最終診断用)                         -->
-<!-- ================================================================== -->
-<script>
-  console.log("--- SCRIPT VERSION CHECK ---");
-  console.log("VERSION: 2026-03-13-RACE-CONDITION-FIX-FINAL");
-  console.log("If you see this message, the latest HTML and JS are loaded.");
-  console.log("--------------------------");
-</script>
+
 
 </body>
 </html>
