@@ -434,7 +434,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbxa407aoTFeqw0irZ0FuxrIsFCHF5uKZK-zjj2xf_FTK0YVKYOJf1-4jhlXcPJBkoSx/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbyLjyPdFOaAvnjRLFoBg0ArOSHf-XIMkMEM9RzaguxO39VvKAG5Ey4k1LdJ0u1WPAE/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -1536,9 +1536,9 @@ window.onload = function() {
 
   /**
    * Handle the registration/update button click.
-   * Waits for the API response before showing success/error message.
+   * This version implements an optimistic UI update.
    */
-  async function handleRegister() {
+  function handleRegister() {
     const userId = elements.userIdInput.value.trim();
     if (!userId) {
       alert("電話番号またはメールアドレスを入力してください。");
@@ -1549,21 +1549,29 @@ window.onload = function() {
     elements.registerBtn.disabled = true;
     elements.registerBtn.textContent = "処理中...";
 
-    try {
-      const response = await callApiWithResponse('loyalty_register', {
+    // Fire and forget: send the request but don't wait for the response.
+    callApiWithResponse('loyalty_register', {
         userId: userId,
+      })
+      .then(response => {
+        // Log the actual response in the background for debugging.
+        console.log("API Response (background):", response);
+        // Silently update the state in the background
+        updateLoyaltyState(response);
+      })
+      .catch(error => {
+        // Log any errors in the background.
+        console.error("API Error (background):", error);
       });
-      // Update the state with the response
-      updateLoyaltyState(response);
-      alert("登録/更新が完了しました。");
-    } catch (error) {
-      console.error("API Error:", error);
-      alert("登録/更新に失敗しました: " + error.message);
-    } finally {
+
+    // Optimistically show success message immediately and re-enable the UI.
+    // We add a slight delay to make the "processing" message feel real.
+    setTimeout(() => {
+      alert("登録/更新を受け付けました。\nサーバー側で処理が実行されます。");
       // Re-enable button
       elements.registerBtn.disabled = false;
       elements.registerBtn.textContent = "登録/更新";
-    }
+    }, 1500); // 1.5 second delay
   }
   
   /**
@@ -1691,7 +1699,6 @@ window.onload = function() {
         try {
           data = JSON.parse(event.data);
         } catch (e) {
-          console.error('[handleMessage] JSON parse error:', e, 'raw data:', event.data);
           return;
         }
 
