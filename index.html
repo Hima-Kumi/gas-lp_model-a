@@ -1691,6 +1691,7 @@ window.onload = function() {
         try {
           data = JSON.parse(event.data);
         } catch (e) {
+          console.error('[handleMessage] JSON parse error:', e, 'raw data:', event.data);
           return;
         }
 
