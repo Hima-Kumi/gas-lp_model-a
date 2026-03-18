@@ -1147,9 +1147,14 @@
   <script>
     
     // Loyalty modal event listeners
-    $('#openLoyalty')?.addEventListener('click', ()=>{
-      $('#loyBackdrop').style.display='block';
-      $('#loyModal').style.display='block';
+    $('#openLoyalty')?.addEventListener('click', (e)=>{
+      console.log('openLoyalty button clicked!'); // デバッグ用ログ
+      e.preventDefault(); // aタグのデフォルト動作を停止
+      const backdrop = $('#loyBackdrop');
+      const modal = $('#loyModal');
+      if (backdrop) backdrop.style.display='block';
+      if (modal) modal.style.display='block';
+      console.log('Modal display style set to block.'); // デバッグ用ログ
     });
 
     function closeLoy(){
