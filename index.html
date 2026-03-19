@@ -1555,7 +1555,7 @@ window.onload = function() {
       if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "コードを検証中...";
 
       // Call the GAS API to process the check-in
-      callApiWithResponse("loyalty_checkin_from_qr", { token: decodedText, userId: loyaltyState.userId })
+      callApiWithResponse("loyalty_checkin_from_qr", { qr_data: decodedText, userId: loyaltyState.userId })
         .then(result => {
           if (result && result.ok) {
             // Success
