@@ -1658,18 +1658,32 @@ window.onload = function() {
       return;
     }
 
-    elements.registerBtn.disabled = true;
-    elements.registerBtn.textContent = "処理中...";
+    // --- ここから楽観的更新 ---
+    // UIの反応を良くするため、APIの応答を待たずに状態を更新する
+    loyaltyState.userId = userId;
+    localStorage.setItem(LS_USER_ID_KEY, userId);
+    updateLoyaltyUI(); // userIdInputに値を再反映
+    alert("登録を受け付けました。QRスキャンボタンを押してください。");
+    // --- ここまで楽観的更新 ---
 
+    // 登録ボタンを一時的に無効化し、裏でAPI通信を実行
+    elements.registerBtn.disabled = true;
+    elements.registerBtn.textContent = "更新中...";
+
+    // 裏でAPIを呼び出してサーバーと同期
     callApiWithResponse('loyalty_register', { userId: userId })
       .then(response => {
         console.log("API Response (background):", response);
-        updateLoyaltyState(response);
+        // サーバーからの最新情報で状態を上書き更新
+        updateLoyaltyState(response); 
       })
       .catch(error => {
+        // エラーが発生しても、UIはすでに更新されているのでユーザーは操作を継続できる
         console.error("API Error (background):", error);
+        // 必要であれば、ユーザーにエラーを通知する
+        // alert("バックグラウンドでの更新に失敗しました。");
       }).finally(() => {
-        alert("登録/更新を受け付けました。");
+        // 通信完了後、ボタンを再度有効化
         elements.registerBtn.disabled = false;
         elements.registerBtn.textContent = "登録/更新";
       });
