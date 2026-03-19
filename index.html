@@ -1547,11 +1547,36 @@ window.onload = function() {
     html5QrCode = new Html5Qrcode("qr-reader");
 
     const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-        // This will be fully implemented in the next step
-        console.log(`Code matched = ${decodedText}`, decodedResult);
-        alert(`QRコードを読み取りました！\n${decodedText}`); // Placeholder alert
-        stopQrScanner();
-        // TODO: Call GAS to validate the code and award a point.
+      // Stop scanning first.
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(err => console.error("QR scanner stop failed.", err));
+      }
+      
+      if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "コードを検証中...";
+
+      // Call the GAS API to process the check-in
+      callApiWithResponse("loyalty_checkin_from_qr", { token: decodedText, userId: loyaltyState.userId })
+        .then(result => {
+          if (result && result.ok) {
+            // Success
+            alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
+            updateLoyaltyState(result); // Update UI with new points
+            elements.qrScannerUi.style.display = 'none'; // Close scanner UI
+          } else {
+            // Handled API error (e.g., invalid token, already checked in)
+            const errorMessage = "チェックインエラー: " + (result?.message || result?.error || "不明なエラー");
+            if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = errorMessage;
+            alert(errorMessage);
+            setTimeout(() => { elements.qrScannerUi.style.display = 'none'; }, 2500); // Close after showing error
+          }
+        })
+        .catch(err => {
+          // Network or other critical error
+          const criticalError = "チェックインに失敗しました: " + err.message;
+          if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = criticalError;
+          alert(criticalError);
+          setTimeout(() => { elements.qrScannerUi.style.display = 'none'; }, 2500);
+        });
     };
 
     const config = { 
