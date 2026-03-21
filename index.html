@@ -1554,6 +1554,18 @@ window.onload = function() {
       
       if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "コードを検証中...";
 
+      // --- 追加: QRコードの内容を検証 ---
+      const CHECKIN_PREFIX = "MILD-CHECKIN@";
+      if (!decodedText || !decodedText.startsWith(CHECKIN_PREFIX)) {
+        const invalidQrError = "無効なQRコードです。店舗のチェックイン用QRコードをスキャンしてください。";
+        if (elements.qrReaderStatus) elements.qrReaderStatus.textContent = invalidQrError;
+        alert(invalidQrError);
+        // スキャナを停止してUIを閉じる
+        setTimeout(() => { stopQrScanner(); }, 2500);
+        return;
+      }
+      // --- 検証ここまで ---
+
       // Call the GAS API to process the check-in
       callApiWithResponse("loyalty_checkin_from_qr", { qr_data: decodedText, userId: loyaltyState.userId })
         .then(result => {
