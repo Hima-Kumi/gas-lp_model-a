@@ -1779,8 +1779,10 @@ window.onload = function() {
   function callApiWithResponse(action, payload = {}) {
     return new Promise((resolve, reject) => {
       if (loyaltyState.isLoading) {
-        // To prevent spamming, we just log this instead of rejecting.
-        console.log("A request is already in progress.");
+        // To prevent spamming, reject the promise so the caller can handle it.
+        const err = new Error("前の処理が完了するまでお待ちください。");
+        console.log(err.message);
+        reject(err);
         return;
       }
       loyaltyState.isLoading = true;
