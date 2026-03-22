@@ -1530,6 +1530,9 @@ window.onload = function() {
    * Starts the QR Code scanner
    */
   function startQrScanner() {
+    // ★★★ DIAGNOSTIC ALERT ★★★
+    alert("【診断】QRスキャン開始。現在の状態: \n" + JSON.stringify(loyaltyState, null, 2));
+
     if (!loyaltyState.userId) {
         alert("先に右の「登録/更新」ボタンでユーザー登録を完了してください。");
         elements.userIdInput?.focus();
@@ -1702,6 +1705,10 @@ window.onload = function() {
     try {
       // サーバーからの応答を'await'で待つ
       const response = await callApiWithResponse('loyalty_register', { userId: userId });
+      
+      // ★★★ DIAGNOSTIC ALERT ★★★
+      alert("【診断】サーバーからの応答: \n" + JSON.stringify(response, null, 2));
+
       console.log("API Response:", response);
       // 成功後、サーバーからの最新情報でUIを更新
       updateLoyaltyState(response); 
