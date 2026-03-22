@@ -1606,8 +1606,10 @@ window.onload = function() {
     // Request camera permissions and start scanning.
     html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
         .catch(err => {
+            const errorMessage = "カメラの起動に失敗しました。サイトにカメラへのアクセスが許可されているか確認してください。\n\n詳細: " + String(err);
             console.error("Unable to start scanning.", err);
             if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "カメラの起動に失敗しました。";
+            alert(errorMessage); 
         });
   }
 
