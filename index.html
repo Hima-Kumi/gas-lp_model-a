@@ -1814,19 +1814,47 @@ window.onload = function() {
       };
 
       const handleMessage = (event) => {
-        let data;
-        if (typeof event.data !== 'string') return;
-        try { data = JSON.parse(event.data); } catch (e) { return; }
+        // ★★★ デバッグ強化 ★★★
+        alert("【診断】postMessage受信！ 生データ:\n" + event.data);
+        console.log("【診断】postMessage受信！", {
+            origin: event.origin,
+            data: event.data,
+            expectedRequestId: requestId
+        });
 
+        let data;
+        // データの型をチェック
+        if (typeof event.data !== 'string') {
+            console.log("【診断】event.dataが文字列でないため無視します。");
+            return;
+        }
+
+        try {
+            data = JSON.parse(event.data);
+            console.log("【診断】JSONパース成功:", data);
+        } catch (e) {
+            console.error("【診断】JSONパースに失敗しました。", e);
+            // パース失敗でもエラーをrejectしてタイムアウトを防ぐ
+            cleanup();
+            reject(new Error("受信データのJSONパースに失敗しました: " + e.message));
+            return;
+        }
+
+        // requestId の比較を慎重に行う
         if (data && data.request_id === requestId) {
-          cleanup();
-          if (data.ok) {
-            resolve(data);
-          } else {
-            const serverError = new Error(data.message || data.error || 'APIからエラーが返されました。');
-            serverError.stack = data.stack || serverError.stack;
-            reject(serverError);
-          }
+            console.log("【診断】リクエストIDが一致しました。Promiseを解決します。");
+            cleanup();
+            if (data.ok) {
+                resolve(data);
+            } else {
+                const serverError = new Error(data.message || data.error || 'APIからエラーが返されました。');
+                serverError.stack = data.stack || serverError.stack;
+                reject(serverError);
+            }
+        } else {
+            console.log("【診断】リクエストIDが不一致、またはデータが不正です。", {
+                receivedId: data ? data.request_id : "N/A"
+            });
         }
       };
 
