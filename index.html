@@ -1829,6 +1829,8 @@ window.onload = function() {
       };
 
       const timeoutId = setTimeout(() => {
+        // ★★★ DIAGNOSTIC ALERT ★★★
+        alert("【診断】30秒タイムアウト発生！");
         reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
         cleanup();
       }, 30000);
