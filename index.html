@@ -434,7 +434,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbxRRkWAIKnpUkX0t5cG-CaSoGknnRFVPfZLc9AbSH-v4_k322j2YNkK-Qf4GbQqADRp/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz3cNRFpk9aMnKWswUiy3XgZd8t0ol_1pOF886BQFdWVVl8fpE0eR6JcY-HvNBKFnoe/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -1514,7 +1514,7 @@ window.onload = function() {
       elements.registerBtn.textContent = isLoading ? "処理中..." : "登録/更新";
     }
     if (elements.startQrScanBtn) {
-        elements.startQrScanBtn.disabled = isLoading;
+      elements.startQrScanBtn.disabled = isLoading;
     }
   }
 
@@ -1574,12 +1574,12 @@ window.onload = function() {
         })
         .withFailureHandler(err => {
           setLoading(false);
-          const criticalError = "チェックインに失敗しました: " + err.message;
-          if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = criticalError;
-          alert(criticalError);
+          const errorMessage = "チェックインに失敗しました: " + err.message + "\n\n詳細: " + JSON.stringify(err, Object.getOwnPropertyNames(err), 2);
+          if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "チェックインに失敗しました。";
+          alert(errorMessage);
           setTimeout(() => stopQrScanner(), 2500);
         })
-        .loyalty_checkinFromQr(decodedText, loyaltyState.userId);
+        .loyalty_checkinFromQr_gs(decodedText, loyaltyState.userId);
     };
 
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
@@ -1634,9 +1634,9 @@ window.onload = function() {
       })
       .withFailureHandler(err => {
         setLoading(false);
-        console.error("状態の取得中にエラー:", err.message);
+        alert("エラー: 状態の取得に失敗しました。\n\n詳細: " + JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
       })
-      .loyalty_getState(loyaltyState.userId);
+      .loyalty_getState_gs(loyaltyState.userId);
   }
   
   function updateLoyaltyState(apiResponse) {
@@ -1669,10 +1669,14 @@ window.onload = function() {
         })
         .withFailureHandler(error => {
             setLoading(false);
+            const errorMessage = "登録・更新中にエラーが発生しました。\n\n" +
+                               "GAS側で新しいバージョンがデプロイされているか確認してください。\n\n" +
+                               "エラー詳細:\n" +
+                               JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
             console.error("API Error:", error);
-            alert("登録・更新中に通信エラーが発生しました: " + error.message);
+            alert(errorMessage);
         })
-        .loyalty_register(userId, loyaltyState.deviceId);
+        .loyalty_register_gs(userId, loyaltyState.deviceId);
   }
 
   function initLoyalty() {
@@ -1698,6 +1702,9 @@ window.onload = function() {
     elements.registerBtn?.addEventListener('click', handleRegister);
     elements.startQrScanBtn?.addEventListener('click', startQrScanner);
     elements.closeQrScannerBtn?.addEventListener('click', stopQrScanner);
+    
+    // handleCheckinFromUrl is removed as it relies on the old iframe method.
+    // A modern approach would involve passing params to the main URL and handling them on load.
   }
 
   window.addEventListener('load', initLoyalty);
@@ -1707,5 +1714,5 @@ window.onload = function() {
 
 
 
-</body>
+  </body>
 </html>
