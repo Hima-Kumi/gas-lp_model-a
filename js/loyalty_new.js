@@ -331,9 +331,9 @@
         .then(result => {
           if (result && result.ok) {
             alert(`チェックインしました！
-現在のポイント: ${result.points}p` + (result.newCouponIssued ? "
+現在のポイント: ${result.points}p${result.newCouponIssued ? `
 
-新しいクーポンが発行されました！" : ""));
+新しいクーポンが発行されました！` : ""}`);
             updateLoyaltyState(result);
           } else {
             const errorMessage = "チェックインエラー: " + (result?.message || result?.error || "不明なエラー");
