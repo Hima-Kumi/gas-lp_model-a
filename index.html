@@ -1,9 +1,6 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- Revision: 最終安定版（運用分離 / Public API連携 / プロトタイプ強制表示） + Cache Normalizer v1（案2）
-       + 予約送信は「fetch + mode:no-cors（楽観成功UI）」に統一（CORSでUIが壊れない）
-  -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coffee & Restaurant – 蘭豆</title>
@@ -11,6 +8,17 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  
+  <!-- ===== DIAGNOSTIC CODE START ===== -->
+  <script>
+    window.addEventListener('message', function(event) {
+      console.log('%c[DIAGNOSTIC] Global message listener received:', 'color: magenta; font-weight: bold;', {
+        origin: event.origin,
+        data: event.data
+      });
+    });
+  </script>
+  <!-- ===== DIAGNOSTIC CODE END ===== -->
 
   <style>
     :root{
@@ -1673,8 +1681,11 @@ window.onload = function() {
   }
 
   function callApiWithResponse(action, payload = {}) {
+    console.log(`%c[DIAGNOSTIC] Preparing API call...`, 'color: blue;', { action, payload });
+
     return new Promise((resolve, reject) => {
       if (loyaltyState.isLoading) {
+        console.warn('%c[DIAGNOSTIC] API call blocked: another request is already in progress.', 'color: orange;');
         return reject(new Error("前の処理が完了するまでお待ちください。"));
       }
       loyaltyState.isLoading = true;
@@ -1683,11 +1694,14 @@ window.onload = function() {
       const iframeName = "gas_target_" + requestId;
       let form, iframe;
       
+      console.log(`%c[DIAGNOSTIC] Starting API call.`, 'color: blue; font-weight: bold;', { action, requestId });
+
       let settled = false;
       const cleanup = () => {
         if (settled) return;
         settled = true;
         
+        console.log(`%c[DIAGNOSTIC] Cleaning up for requestId: ${requestId}`, 'color: gray;');
         window.removeEventListener('message', handleMessage);
         clearTimeout(timeoutId);
         
@@ -1698,13 +1712,29 @@ window.onload = function() {
       };
 
       const handleMessage = (event) => {
+        // --- DIAGNOSTIC LOG: Log every message received by this specific handler ---
+        console.log('%c[DIAGNOSTIC] API Response Handler received message:', 'color: green;', {
+          expectedRequestId: requestId,
+          receivedData: event.data,
+          origin: event.origin
+        });
+
         let data;
         try {
-          if (typeof event.data !== 'string') return;
-          data = JSON.parse(event.data);
-        } catch (e) { return; }
+          // GASからの応答は文字列化されていると想定
+          if (typeof event.data === 'string') {
+            data = JSON.parse(event.data);
+          } else {
+             // 文字列でない場合は、それがオブジェクトならそのまま使う
+            data = event.data;
+          }
+        } catch (e) { 
+            console.warn('[DIAGNOSTIC] Failed to parse message data.', { error: e, data: event.data });
+            return; 
+        }
 
         if (data && data.request_id === requestId) {
+          console.log(`%c[DIAGNOSTIC] Request ID MATCHED! requestId: ${requestId}`, 'color: green; font-weight: bold;');
           cleanup();
           if (data.ok) {
             resolve(data);
@@ -1713,10 +1743,16 @@ window.onload = function() {
             serverError.stack = data.stack;
             reject(serverError);
           }
+        } else {
+          console.warn(`%c[DIAGNOSTIC] Request ID MISMATCH or invalid data.`, 'color: orange; font-weight: bold;', {
+            expected: requestId,
+            received: data ? data.request_id : 'N/A'
+          });
         }
       };
 
       const timeoutId = setTimeout(() => {
+        console.error(`%c[DIAGNOSTIC] API call TIMEOUT for requestId: ${requestId}`, 'color: red; font-weight: bold;');
         reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
         cleanup();
       }, 30000);
