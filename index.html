@@ -1472,9 +1472,6 @@ window.onload = function() {
     closeQrScannerBtn: getEl('closeQrScanner'),
   };
 
-  /**
-   * Stops the QR Code scanner and hides the UI
-   */
   function stopQrScanner() {
     if (html5QrCode && html5QrCode.isScanning) {
         html5QrCode.stop().then(() => {
@@ -1488,11 +1485,8 @@ window.onload = function() {
       elements.qrScannerUi.style.display = 'none';
     }
   }
-  window.stopQrScanner = stopQrScanner; // Expose to be callable from other scripts
+  window.stopQrScanner = stopQrScanner;
 
-  /**
-   * Starts the QR Code scanner
-   */
     function startQrScanner() {
       if (!loyaltyState.userId) {
           alert("先に「登録/更新」ボタンでユーザー登録を完了してください。");
@@ -1524,14 +1518,12 @@ window.onload = function() {
           return;
         }
   
-        // --- Client-side validation, as per user request ---
         const VALID_STORE_KEY = "ranzu";
         if (storeKey !== VALID_STORE_KEY) {
           alert(`無効な店舗のQRコードです。`);
           return;
         }
   
-        // Validation passed, now call the backend with only the userId.
         callApiWithResponse("loyalty_checkin_from_qr", { 
             userId: loyaltyState.userId 
           })
@@ -1562,18 +1554,13 @@ window.onload = function() {
           });
     }
 
-  /**
-   * Updates the loyalty UI based on the current state
-   */
   function updateLoyaltyUI() {
-    if (!elements.modal) return; // Don't update if elements not found
+    if (!elements.modal) return;
 
-    // Update user ID input
     if (elements.userIdInput) {
       elements.userIdInput.value = loyaltyState.userId || '';
     }
     
-    // Update points display
     const points = loyaltyState.points || 0;
     if (elements.pointsDisplay) {
       elements.pointsDisplay.textContent = `ポイント: ${points} / 10`;
@@ -1583,17 +1570,15 @@ window.onload = function() {
       elements.progressSpan.style.width = `${percentage}%`;
     }
 
-    // Enable or disable the QR scan button based on whether a user is registered
     if (elements.startQrScanBtn) {
         elements.startQrScanBtn.disabled = !loyaltyState.userId;
     }
 
-    // Update coupon list
     if (elements.couponList) {
         if (loyaltyState.isLoading && loyaltyState.coupons.length === 0) { 
             elements.couponList.innerHTML = '<p class="muted">読み込んでいます...</p>';
         } else if (loyaltyState.coupons && loyaltyState.coupons.length > 0) {
-            elements.couponList.innerHTML = ''; // Clear existing
+            elements.couponList.innerHTML = '';
             loyaltyState.coupons.forEach(coupon => {
                 const couponEl = document.createElement('div');
                 couponEl.className = 'loy-coupon-card';
@@ -1611,10 +1596,6 @@ window.onload = function() {
     }
   }
 
-
-  /**
-   * Fetches the latest state from the server
-   */
   async function fetchState() {
     if (!loyaltyState.userId) {
       loyaltyState.points = 0;
@@ -1629,13 +1610,9 @@ window.onload = function() {
           updateLoyaltyState(result);
         }
     } catch (error) {
-        // Error is handled by callApiWithResponse, maybe show a generic error to user
     }
   }
 
-  /**
-   * Helper to update local state and UI from an API response
-   */
   function updateLoyaltyState(apiResponse) {
       loyaltyState.points = apiResponse.points || 0;
       loyaltyState.coupons = apiResponse.coupons || [];
@@ -1646,11 +1623,6 @@ window.onload = function() {
       updateLoyaltyUI();
   }
 
-
-  /**
-   * Handle the registration/update button click.
-   * This version waits for the server response before enabling the QR button.
-   */
   function handleRegister() {
     const userId = elements.userIdInput.value.trim();
     if (!userId) {
@@ -1665,8 +1637,6 @@ window.onload = function() {
       .then(response => {
         if (response && response.ok) {
             alert("登録/更新が完了しました。QRスキャンボタンでチェックインできます。");
-            // This is the "signal" the user requested.
-            // The server has confirmed the registration. Now update the state and UI.
             updateLoyaltyState(response);
         } else {
             alert("登録/更新に失敗しました: " + (response.message || "不明なエラー"));
@@ -1676,58 +1646,42 @@ window.onload = function() {
         alert("登録/更新中にエラーが発生しました: " + error.message);
       })
       .finally(() => {
-        // Always re-enable the button after the process is finished
         elements.registerBtn.disabled = false;
         elements.registerBtn.textContent = "登録/更新";
       });
   }
   
-  /**
-   * Handle check-in from a URL token (e.g., from an old QR code implementation)
-   */
   async function handleCheckinFromUrl(){
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('checkinToken');
 
     if (token) {
-      // Clean the URL immediately
       const cleanUrl = window.location.pathname + window.location.hash;
       history.replaceState(null, '', cleanUrl);
 
       alert("チェックイン処理中...");
-
-      try {
-        // This assumes the old token can be processed by the new endpoint
-        const result = await callApiWithResponse("loyalty_checkin_from_qr", { token: token });
-
-        if (result && result.ok) {
-          alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
-          updateLoyaltyState(result);
-          elements.modal.style.display = 'block'; // Show modal to see result
-        } else {
-          alert("チェックインエラー: " + (result?.message || result?.error || "不明なエラー"));
-        }
-      } catch (error) {
-        alert("チェックインに失敗しました: " + error.message);
-      }
+      // The primary check-in mechanism is now the in-app scanner.
+      // This path is for legacy compatibility and might not be fully supported
+      // by the simplified backend. We can choose to show a message instead.
+      alert("このQRコードは古い形式の可能性があります。アプリ内の「QRスキャン」ボタンからお試しください。");
     }
   }
   
-  /**
-   * Calls API using a hidden iframe and postMessage, expecting a JSON response.
-   */
+  function newClientRequestId_(){
+    try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+    return "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
+  }
+
   function callApiWithResponse(action, payload = {}) {
     return new Promise((resolve, reject) => {
       if (loyaltyState.isLoading) {
-        // Silently ignore if a request is already in flight, or reject if you want to be strict.
-        // return reject(new Error("A request is already in progress."));
-        return; 
+        return reject(new Error("前の処理が完了するまでお待ちください。"));
       }
       loyaltyState.isLoading = true;
 
-      const requestId = "req_" + Date.now() + Math.random();
-      const iframeName = "gasFormTarget"; // Use one static iframe
-      let form;
+      const requestId = newClientRequestId_();
+      const iframeName = "gas_target_" + requestId;
+      let form, iframe;
       
       let settled = false;
       const cleanup = () => {
@@ -1738,6 +1692,7 @@ window.onload = function() {
         clearTimeout(timeoutId);
         
         if (form && form.parentNode) form.parentNode.removeChild(form);
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
         
         loyaltyState.isLoading = false;
       };
@@ -1745,7 +1700,6 @@ window.onload = function() {
       const handleMessage = (event) => {
         let data;
         try {
-          // Ensure event.data is a string and parseable
           if (typeof event.data !== 'string') return;
           data = JSON.parse(event.data);
         } catch (e) { return; }
@@ -1763,13 +1717,18 @@ window.onload = function() {
       };
 
       const timeoutId = setTimeout(() => {
-        reject(new Error("Request timed out after 30 seconds."));
+        reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
         cleanup();
       }, 30000);
 
       window.addEventListener('message', handleMessage);
 
       try {
+        iframe = document.createElement('iframe');
+        iframe.name = iframeName;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
         form = document.createElement('form');
         form.method = 'POST';
         form.action = PUBLIC_API_URL;
@@ -1802,11 +1761,7 @@ window.onload = function() {
     });
   }
 
-  /**
-   * Initialize the loyalty program script
-   */
   function initLoyalty() {
-    // 1. Get or create device ID
     let deviceId = localStorage.getItem(LS_DEVICE_ID_KEY);
     if (!deviceId) {
       deviceId = self.crypto?.randomUUID ? self.crypto.randomUUID() : `dev_${Date.now()}_${Math.random()}`;
@@ -1814,18 +1769,14 @@ window.onload = function() {
     }
     loyaltyState.deviceId = deviceId;
 
-    // 2. Load userId from storage
     const userId = localStorage.getItem(LS_USER_ID_KEY);
     if (userId) {
       loyaltyState.userId = userId;
-      // Fetch initial state for the known user
       fetchState();
     }
-    updateLoyaltyUI(); // Initial UI setup
+    updateLoyaltyUI();
 
-    // 3. Add event listeners
     elements.openBtn?.addEventListener('click', () => {
-      // Re-fetch state when opening, in case it changed in another tab.
       if (loyaltyState.userId) {
         fetchState();
       }
@@ -1834,11 +1785,9 @@ window.onload = function() {
     elements.startQrScanBtn?.addEventListener('click', startQrScanner);
     elements.closeQrScannerBtn?.addEventListener('click', stopQrScanner);
 
-    // 4. Handle check-in from QR code scan if token is present in URL
     handleCheckinFromUrl();
   }
 
-  // Run initializer after main page content is loaded
   window.addEventListener('load', initLoyalty);
 
 })();
