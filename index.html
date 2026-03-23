@@ -434,7 +434,7 @@
        Public API（JSONP）表示系：現状維持
        ========================================================== */
 
-    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbxoiQ2KhBWNU_LhUm_VDlbmNSTzkpof7eL2Wpa9G95TACuDBZfh5ia-9fy-dN3dSNDK/exec";
+    const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbxWOt31hryq8yYLhv65pfhpMCuoDicnh8Kx8qmmoJDQPGi3_jWznNhpRduuvL_MmTwO/exec";
     const SITE_KEY = "model-a";
 
     const STORAGE_KEY = "cafeSiteData_v21";
@@ -973,36 +973,139 @@
     })();
   </script>
 
-  <!-- ===== ポイント/クーポン（新設計 v2）===== -->
+  <!-- ===== ポイント/クーポン（モック） ===== -->
   <style>
-    .loy-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.38); display:none; z-index:10001; }
+    .loy-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.38); display:none; z-index:80; }
     .loy-modal{ position:fixed; inset:auto 0 0 0; margin:auto; width:min(560px, calc(100% - 24px));
-      background:#fff; border:1px solid #e8eaef; border-radius:16px 16px 0 0; box-shadow:0 -10px 60px rgba(0,0,0,.18); padding:16px; z-index:10002; display:none; }
+      background:#fff; border:1px solid #e8eaef; border-radius:16px; box-shadow:0 18px 60px rgba(0,0,0,.18); padding:16px; z-index:81; display:none; }
     .loy-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .loy-tabs{ display:flex; gap:8px; margin:8px 0 12px; border-bottom: 1px solid #e8eaef; padding-bottom: 8px; }
-    .loy-tab{ padding:.5rem .9rem; border:none; border-bottom: 3px solid transparent; background:none; cursor:pointer; font-size: 1rem; font-weight: 700; color: var(--text-dim); }
-    .loy-tab[aria-selected="true"]{ color: var(--brand); border-bottom-color: var(--brand); }
+    .loy-tabs{ display:flex; gap:8px; margin:8px 0 12px; }
+    .loy-tab{ padding:.45rem .8rem; border:1px solid #e8eaef; border-radius:999px; cursor:pointer; }
+    .loy-tab[aria-selected="true"]{ background:var(--badge-bg); color:var(--badge-fg); border-color: color-mix(in srgb, var(--brand) 30%, #e8eaef); }
     .loy-pane{ display:none; }
     .loy-pane.active{ display:block; }
     .loy-row{ display:flex; gap:8px; align-items:center; }
-    .loy-input{ flex:1; padding:.8rem 1rem; border:1px solid #e8eaef; border-radius:10px; font-size: 1rem; }
-    .loy-btn{ display:inline-flex; align-items:center; justify-content:center; gap: .5em; padding:.8rem 1.2rem; border-radius:999px; border:1px solid #e8eaef; background:#fff; cursor:pointer; font-weight:700; }
+    .loy-input{ flex:1; padding:.7rem .9rem; border:1px solid #e8eaef; border-radius:10px; }
+    .loy-btn{ padding:.7rem 1rem; border-radius:999px; border:1px solid #e8eaef; background:#fff; cursor:pointer; }
     .loy-btn.primary{ background:var(--brand); color:#fff; border-color:transparent; }
-    .loy-btn:disabled { background: #ccc; cursor: not-allowed; }
     .loy-progress{ height:10px; background:#f2f5f9; border-radius:999px; overflow:hidden; }
-    .loy-progress > span{ display:block; height:100%; width:0%; background:var(--brand); transition: width .3s ease; }
-    #loyaltyCardView, #loyaltyRegisterView { padding: 8px 4px; }
-    .loy-coupon-card { background: var(--muted); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-    .loy-coupon-card h4 { margin: 0 0 8px; }
-    .loy-coupon-card p { margin: 0 0 12px; font-size: 0.9rem; }
-    .loy-coupon-card small { color: var(--text-dim); }
-  </style>
+    .loy-progress > span{ display:block; height:100%; width:0%; background:var(--brand); }
+  
+
+/* ============================================================
+   ★追加：予約フォーム内タブ（控えめ）
+============================================================ */
+.formTabs{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
+.tabBtn{
+  border:1px solid var(--border);
+  background:#fff;
+  padding:.55rem .9rem;
+  border-radius:999px;
+  cursor:pointer;
+  font-weight:900;
+  color:var(--text-dim);
+}
+.tabBtn.active{
+  background:var(--muted);
+  color:var(--text);
+  border-color:var(--border);
+}
+.formPanel{ margin-top:8px; }
+/* honeypot */
+.hpField{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+    /* --- feedback/reserve honeypot: must be invisible but remain in DOM --- */
+    .honeypot{
+      position:absolute !important;
+      left:-9999px !important;
+      top:auto !important;
+      width:1px !important;
+      height:1px !important;
+      overflow:hidden !important;
+      opacity:0 !important;
+      pointer-events:none !important;
+    }
+    .form-status:empty{ display:none; }
+
+    /* 旧文言の復活防止（必要なら後で復活できるように、表示だけ抑止） */
+    #reserveAltNote{ display:none !important; }
+
+
+
+    /* ===== NEW: Stylish Reserve Form UI (v6) ===== */
+    .reserveTabBar {
+      display: flex;
+      justify-content: center;
+      padding: 20px 20px 0;
+      border-bottom: none;
+    }
+
+    .reserveTab {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text-dim);
+      font-weight: 700;
+      padding: 10px 20px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    .reserveTab:first-of-type {
+      border-radius: 999px 0 0 999px;
+    }
+    .reserveTab:last-of-type {
+      border-radius: 0 999px 999px 0;
+      border-left: none;
+    }
+
+    .reserveTab:hover:not(.is-active) {
+      background: var(--muted);
+      color: var(--text);
+    }
+    
+    .reserveTab.is-active {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+      box-shadow: 0 4px 15px color-mix(in srgb, var(--brand) 30%, transparent);
+      z-index: 2;
+    }
+
+    .reservePanels {
+      background-color: #fff;
+      padding: clamp(20px, 4vw, 32px);
+      border-radius: var(--radius);
+      margin-top: 0;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    #reserve label {
+      font-weight: 700;
+      font-size: .9rem;
+      color: var(--text-dim);
+    }
+
+    #reserve .input, #reserve textarea, #reserve select {
+      margin-top: 4px;
+    }
+
+    
+
+    .reservePanel[hidden]{ display:none !important; }
+    
+    
+    
+    .form-status{ font-size:.95rem; color:var(--dim); }
+
+</style>
 
   <div class="loy-backdrop" id="loyBackdrop"></div>
   <div class="loy-modal" id="loyModal" role="dialog" aria-modal="true" aria-labelledby="loyTitle">
     <div class="loy-head">
-      <strong id="loyTitle" style="font-size: 1.2rem;">ポイント & クーポン</strong>
-      <button id="loyClose" class="loy-btn" style="padding: .2rem; width:32px; height: 32px; border-radius: 50%;" aria-label="閉じる">×</button>
+      <strong id="loyTitle">ポイント & クーポン</strong>
+      <button id="loyClose" class="loy-btn" aria-label="閉じる">×</button>
     </div>
     <div class="loy-tabs" role="tablist">
       <button class="loy-tab" role="tab" id="tabPoint" aria-selected="true">ポイント</button>
@@ -1010,366 +1113,661 @@
       <button class="loy-tab" role="tab" id="tabHowto" aria-selected="false">使い方</button>
     </div>
 
-    <!-- ポイントカード パネル -->
     <div id="panePoint" class="loy-pane active" role="tabpanel" aria-labelledby="tabPoint">
-      
-      <!-- [表示切替] 新規登録ビュー -->
-      <div id="loyaltyRegisterView">
-        <p class="muted" style="margin:0 0 12px; font-size:0.9rem; line-height:1.5;">
-          電話番号かメールアドレスでポイントカードを無料作成！<br>ご来店ごとにポイントが貯まります。
+      <div class="loy-row" style="margin-bottom:8px;">
+        <input id="loyaltyUserId" class="loy-input" placeholder="電話番号またはメールで登録">
+        <button id="loyaltyRegisterBtn" class="loy-btn">登録/更新</button>
+      </div>
+      <div class="loy-row" style="margin-bottom:12px;">
+        <p class="muted" style="margin:0; font-size:0.85rem; line-height:1.3;">
+          登録後、店頭QRをスキャンして表示されるページからチェックインしてください。
         </p>
-        <div class="loy-row">
-          <input id="loyaltyUserIdInput" class="loy-input" placeholder="電話番号 または メールアドレス" type="tel">
-          <button id="loyaltyRegisterBtn" class="loy-btn primary">作成</button>
-        </div>
       </div>
-
-      <!-- [表示切替] 登録済みカードビュー -->
-      <div id="loyaltyCardView" style="display: none;">
-        <div id="loyaltyProgress" style="margin-bottom:8px;">
-            <div class="loy-progress" title="10ptでクーポン発行"><span style="width:0%"></span></div>
-            <p id="loyaltyPoints" class="muted" style="margin:.5rem 0 1rem;">読み込み中...</p>
-        </div>
-        <button id="startQrScanBtn" class="loy-btn primary" style="width:100%; padding: 14px; font-size: 1.1rem;">
-          QRスキャンでチェックイン
-        </button>
+      <div id="loyaltyProgress" style="margin-bottom:8px;">
+        <div class="loy-progress" title="10ptでクーポン発行"><span style="width:0%"></span></div>
+        <p id="loyaltyPoints" class="muted" style="margin:.5rem 0 0;">ポイント: 0 / 10</p>
       </div>
-
     </div>
 
-    <!-- クーポン パネル -->
     <div id="paneCoupon" class="loy-pane" role="tabpanel" aria-labelledby="tabCoupon">
-      <div id="loyaltyCouponList"><p class="muted">利用可能なクーポンはありません。</p></div>
+      <div id="loyaltyCouponList"><p class="muted">クーポンを読み込んでいます...</p></div>
     </div>
 
-    <!-- 使い方 パネル -->
     <div id="paneHowto" class="loy-pane" role="tabpanel" aria-labelledby="tabHowto">
-      <ol style="margin-left:1rem; padding-left: 1rem; font-size: 0.95rem; line-height: 1.6;">
-        <li>初回は「ポイント」タブで電話番号orメールを入れてポイントカードを**作成**します。</li>
-        <li>次回以降はカードが自動で表示されます。</li>
-        <li>ご来店時に「**QRスキャンでチェックイン**」を押し、店頭のQRコードを読み取るとポイントが貯まります。</li>
-        <li>**10ポイント**で特典クーポンが自動で発行されます。</li>
-        <li>「クーポン」タブで使用したいクーポンを店員に提示し、目の前で「**使用する**」ボタンを押してください。</li>
+      <ol style="margin-left:1rem; padding-left: 1rem;">
+        <li>初回は「ポイント」タブで電話番号orメールを入れて<strong>登録/更新</strong>。</li>
+        <li>来店時に店頭のQRコードをスキャンし、開いたページのボタンを押すとチェックイン（ポイント付与）が完了します。</li>
+        <li><strong>10pt</strong>で自動的にクーポンが発行されます。</li>
+        <li>「クーポン」タブで使用したいクーポンを店員に提示し、目の前で「使用する」ボタンを押してください。</li>
       </ol>
       <small class="muted">※ ポイントのチェックインは8時間に1回までです。</small>
     </div>
   </div>
 
-  <!-- QRスキャナ UI -->
-  <div id="qrScannerUi" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 10003;">
-    <div style="width: min(100% - 32px, 500px); margin: 20px auto; position: relative;">
-      <div id="qr-reader" style="width: 100%; background: #111; border: 1px solid #444; border-radius: 12px; overflow:hidden;"></div>
-      <div id="qr-reader-status" style="color: #fff; text-align: center; padding: 12px; height: 40px; font-weight: bold;">カメラを起動中...</div>
-      <button id="closeQrScanner" style="position: absolute; top: -15px; right: -15px; width: 36px; height: 36px; background: #fff; border: none; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,.3);">&times;</button>
+  <script>
+    
+    // Loyalty modal event listeners
+    $('#openLoyalty')?.addEventListener('click', ()=>{
+      $('#loyBackdrop').style.display='block';
+      $('#loyModal').style.display='block';
+    });
+
+    function closeLoy(){
+      $('#loyBackdrop').style.display='none';
+      $('#loyModal').style.display='none';
+    }
+    $('#loyClose')?.addEventListener('click', closeLoy);
+    $('#loyBackdrop')?.addEventListener('click', closeLoy);
+
+    // Loyalty modal tab logic
+    const loyTabs = [['tabPoint','panePoint'],['tabCoupon','paneCoupon'],['tabHowto','paneHowto']];
+    loyTabs.forEach(([t,p])=>{
+      $('#'+t)?.addEventListener('click', ()=>{
+        loyTabs.forEach(([tt,pp])=>{
+          $('#'+tt).setAttribute('aria-selected', tt===t ? 'true' : 'false');
+          $('#'+pp).classList.toggle('active', pp===p);
+        });
+      });
+    });
+  
+  // Reserve / Feedback Panel Tab Logic
+  (function(){
+    const tabReserve = document.getElementById('tabReserve');
+    const tabFeedback = document.getElementById('tabFeedback');
+    const panelReserve = document.getElementById('panelReserve');
+    const panelFeedback = document.getElementById('panelFeedback');
+    const panelsWrap = document.querySelector('#reserve .reservePanels');
+    if(!tabReserve || !tabFeedback || !panelReserve || !panelFeedback) return;
+
+    function setPanelsMinHeight(){
+      if(!panelsWrap) return;
+      // 一瞬だけ両方を表示して高さを測る（位置ズレ防止）
+      const prevReserveHidden = panelReserve.hidden;
+      const prevFeedbackHidden = panelFeedback.hidden;
+
+      panelReserve.hidden = false;
+      panelFeedback.hidden = false;
+
+      // scrollHeight を使う（hidden=false なので確実に取れる）
+      const maxH = Math.max(panelReserve.scrollHeight, panelFeedback.scrollHeight);
+
+      // 元に戻す
+      panelReserve.hidden = prevReserveHidden;
+      panelFeedback.hidden = prevFeedbackHidden;
+
+      panelsWrap.style.minHeight = (maxH || 0) + 'px';
+    }
+
+    function activate(which, keepScroll=true){
+      const isReserve = which === 'reserve';
+      const y = window.scrollY;
+
+      tabReserve.classList.toggle('is-active', isReserve);
+      tabFeedback.classList.toggle('is-active', !isReserve);
+
+      panelReserve.hidden = !isReserve;
+      panelFeedback.hidden = isReserve;
+
+      // 高さを固定して、クリック時にページが上下に動くのを防ぐ
+      setPanelsMinHeight();
+
+      if(keepScroll){
+        requestAnimationFrame(()=> window.scrollTo({ top: y, left: 0, behavior: 'auto' }));
+      }
+    }
+
+    tabReserve.addEventListener('click', (e)=>{ e.preventDefault(); activate('reserve'); });
+    tabFeedback.addEventListener('click', (e)=>{ e.preventDefault(); activate('feedback'); });
+
+    window.addEventListener('resize', ()=> setPanelsMinHeight());
+
+    // 初期（先に高さ確定→表示）
+    panelReserve.hidden = false;
+    panelFeedback.hidden = true;
+    setPanelsMinHeight();
+    activate('reserve', false);
+  })();
+
+
+</script>
+
+  <iframe id="gasFormTarget" name="gasFormTarget" style="display:none;width:0;height:0;border:0;"></iframe>
+
+
+<div id="pwa-install-prompt" class="pwa-prompt" style="display: none;">
+  <div class="pwa-prompt-content">
+    <button class="pwa-close-btn" onclick="closePwaPrompt()" aria-label="閉じる">&times;</button>
+    <h4>ホーム画面に追加しませんか？</h4>
+    <p>このサイトをアプリのようにホーム画面に設置できます。ブックマークよりも手軽にアクセスできて便利です。</p>
+    <div class="pwa-instructions">
+      <div class="pwa-step">
+        <span class="pwa-step-num">1</span>
+        <span>ブラウザ下部の共有アイコン <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgNXYxMk0xMiA1TDggOU0xMiA1TDE2IDlNMjAgMTFWMTlDMjAgMjAuMTA0NiAxOS4xMDQ2IDIxIDE4IDIxSDE4QzYuODk1NDMgMjEgNiAyMC4xMDQ2IDYgMTlWMTFDMiAxMCAyIDkuODk1NDMgMiA5QzIgNy44OTU0MyAyLjg5NTQzIDcgNCA3SDIwQzIxLjEwNDYgNyAyMiA3Ljg5NTQzIDIyIDlWMTEiIHN0cm9rZT0iIzAwN0FGRiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" alt="共有アイコン" class="inline-icon"> をタップ</span>
+      </div>
+      <div class="pwa-step">
+        <span class="pwa-step-num">2</span>
+        <span>メニューから「ホーム画面に追加」を選択</span>
+      </div>
     </div>
   </div>
+  <div class="pwa-arrow"></div>
+</div>
 
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script>
-    /* ==========================================================
-       新ポイントシステム v2 (2024-03-22)
-    ========================================================== */
-    (function() {
-      // --- 定数定義 ---
-      const LS_DEVICE_ID_KEY = "loyaltyDeviceId_v2";
-      const LS_USER_ID_KEY = "loyaltyUserId_v2";
+<!-- service workerへのリンク -->
+<!--
+<script>
+  // file:// プロトコル等ではPWA機能（Manifest/ServiceWorker）が動作しないため、
+  // http/httpsの時のみ実行・読み込みを行うようガードします（これでローカルのエラーが消えます）
+  if (location.protocol.startsWith('http')) {
+    // 1. manifest.json を動的に追加
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = './manifest.json';
+    document.head.appendChild(link);
 
-      // --- 状態管理 ---
-      const loyaltyState = {
-        deviceId: null,
-        userId: null,
-        points: 0,
-        coupons: [],
-        isLoading: false,
-      };
-      let html5QrCode = null;
+    // 2. Service Worker を登録
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
+  }
+</script>
+-->
 
-      // --- DOM要素のキャッシュ ---
-      const $ = (id) => document.getElementById(id);
-      const elements = {
-        modal: $('loyModal'),
-        backdrop: $('loyBackdrop'),
-        openBtn: $('openLoyalty'),
-        closeBtn: $('loyClose'),
-        registerView: $('loyaltyRegisterView'),
-        cardView: $('loyaltyCardView'),
-        userIdInput: $('loyaltyUserIdInput'),
-        registerBtn: $('loyaltyRegisterBtn'),
-        pointsDisplay: $('loyaltyPoints'),
-        progressSpan: $('loyaltyProgress')?.querySelector('span'),
-        couponList: $('loyaltyCouponList'),
-        startQrScanBtn: $('startQrScanBtn'),
-        qrScannerUi: $('qrScannerUi'),
-        qrReaderStatus: $('qr-reader-status'),
-        closeQrScannerBtn: $('closeQrScanner'),
-      };
+<style>
+/* PWAインストール誘導ポップアップのスタイル（改善版） */
+.pwa-prompt {
+  position: fixed;
+  bottom: 75px; /* iOS Safariのバーとの距離を調整 */
+  left: 50%;
+  width: calc(100% - 30px);
+  max-width: 380px;
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15), 0 4px 10px rgba(0,0,0,0.1);
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  border: 1px solid rgba(0,0,0,0.05);
+  /* visibility と opacity で表示を制御（アニメーションのため） */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+  transform: translateX(-50%) translateY(10px);
+}
+.pwa-prompt[style*="block"] {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.pwa-prompt-content {
+  padding: 20px;
+  padding-bottom: 16px;
+  text-align: center;
+}
+.pwa-prompt-content h4 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #000;
+}
+.pwa-prompt-content p {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+}
+.pwa-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  background-color: #f7f7f7;
+  padding: 12px;
+  border-radius: 10px;
+}
+.pwa-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #333;
+}
+.pwa-step-num {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  background-color: var(--brand, #16a34a);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  border-radius: 50%;
+}
+.inline-icon {
+  width: 20px;
+  height: 20px;
+  vertical-align: -5px; /* アイコンの縦位置を微調整 */
+  margin: 0 2px;
+}
+.pwa-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: #e8e8e8;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 28px;
+  text-align: center;
+  color: #888;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.pwa-close-btn:hover {
+  background-color: #ddd;
+}
+/* 下向きの矢印（アニメーション付き） */
+.pwa-arrow {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  /* transform は animation で制御 */
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 12px solid #fff;
+  animation: pwa-bounce 1.5s infinite;
+}
 
-      // --- UI更新関連 ---
-      const setLoading = (loading, message = "処理中...") => {
-        loyaltyState.isLoading = loading;
-        const buttons = [elements.registerBtn, elements.startQrScanBtn];
-        buttons.forEach(btn => {
-          if (!btn) return;
-          btn.disabled = loading;
-          if (loading) {
-            btn.dataset.originalText = btn.textContent;
-            btn.textContent = message;
-          } else if (btn.dataset.originalText) {
-            btn.textContent = btn.dataset.originalText;
-          }
-        });
-      };
+@keyframes pwa-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-6px);
+  }
+  60% {
+    transform: translateX(-50%) translateY(-3px);
+  }
+}
+</style>
 
-      const updateLoyaltyUI = () => {
-        if (!elements.modal) return;
-        
-        // 登録状態に応じてビューを切り替え
-        const isRegistered = !!loyaltyState.userId;
-        elements.registerView.style.display = isRegistered ? 'none' : 'block';
-        elements.cardView.style.display = isRegistered ? 'block' : 'none';
+<script>
+function isIos() {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod/.test(userAgent);
+}
 
-        if (isRegistered) {
-          const points = loyaltyState.points || 0;
-          elements.pointsDisplay.textContent = `現在のポイント: ${points} / 10`;
-          elements.progressSpan.style.width = `${(points / 10) * 100}%`;
+function isInStandaloneMode() {
+  return ('standalone' in window.navigator) && (window.navigator.standalone);
+}
 
-          // クーポンリストの更新
-          const unusedCoupons = loyaltyState.coupons.filter(c => c.status === 'unused');
-          if (unusedCoupons.length > 0) {
-            elements.couponList.innerHTML = unusedCoupons.map(coupon => `
-              <div class="loy-coupon-card">
-                <h4>特典クーポン</h4>
-                <p>この画面を店員に提示し、確認後「使用する」ボタンを押してください。</p>
-                <small>発行日時: ${new Date(coupon.issuedAt).toLocaleString()}</small>
-                <button class="loy-btn primary use-coupon-btn" data-coupon-id="${coupon.couponId}">使用する</button>
-              </div>
-            `).join('');
-          } else {
+function closePwaPrompt() {
+  document.getElementById('pwa-install-prompt').style.display = 'none';
+  // 一度閉じたら24時間は表示しない（セッション等で制御）
+  localStorage.setItem('pwa-prompt-dismissed', Date.now());
+}
+
+window.onload = function() {
+  const lastDismissed = localStorage.getItem('pwa-prompt-dismissed');
+  const now = Date.now();
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  // iOS かつ スタンドアロン（インストール済み）でない かつ 24時間以内に閉じていない場合
+  if (isIos() && !isInStandaloneMode() && (!lastDismissed || (now - lastDismissed) > oneDay)) {
+    document.getElementById('pwa-install-prompt').style.display = 'block';
+  }
+};
+</script>
+
+
+<script>
+(function() {
+  const LS_DEVICE_ID_KEY = "loyaltyDeviceId";
+  const LS_USER_ID_KEY = "loyaltyUserId";
+
+  let loyaltyState = {
+    deviceId: null,
+    userId: null,
+    points: 0,
+    coupons: [],
+    isLoading: false,
+  };
+
+  // DOM elements
+  const getEl = (id) => document.getElementById(id);
+  const elements = {
+    modal: getEl('loyModal'),
+    openBtn: getEl('openLoyalty'),
+    userIdInput: getEl('loyaltyUserId'),
+    registerBtn: getEl('loyaltyRegisterBtn'),
+    pointsDisplay: getEl('loyaltyPoints'),
+    progressSpan: getEl('loyaltyProgress')?.querySelector('span'),
+    couponList: getEl('loyaltyCouponList'),
+  };
+
+  /**
+   * Updates the loyalty UI based on the current state
+   */
+  function updateLoyaltyUI() {
+    if (!elements.modal) return; // Don't update if elements not found
+
+    // Update user ID input
+    if (elements.userIdInput) {
+      elements.userIdInput.value = loyaltyState.userId || '';
+    }
+    
+    // Update points display
+    const points = loyaltyState.points || 0;
+    if (elements.pointsDisplay) {
+      elements.pointsDisplay.textContent = `ポイント: ${points} / 10`;
+    }
+    if (elements.progressSpan) {
+      const percentage = (points / 10) * 100;
+      elements.progressSpan.style.width = `${percentage}%`;
+    }
+
+    // Update coupon list
+    if (elements.couponList) {
+        if (loyaltyState.isLoading && loyaltyState.coupons.length === 0) { // Only show loading if no coupons are currently displayed
+            elements.couponList.innerHTML = '<p class="muted">読み込んでいます...</p>';
+        } else if (loyaltyState.coupons && loyaltyState.coupons.length > 0) {
+            elements.couponList.innerHTML = ''; // Clear existing
+            loyaltyState.coupons.forEach(coupon => {
+                const couponEl = document.createElement('div');
+                couponEl.className = 'loy-coupon-card'; // Add a class for styling
+                couponEl.innerHTML = `
+                    <strong>特典クーポン</strong>
+                    <p>この画面を店員に提示してください。</p>
+                    <small>発行日時: ${new Date(coupon.issuedAt).toLocaleString()}</small>
+                    <button class="loy-btn primary use-coupon-btn" data-coupon-id="${coupon.couponId}">使用する</button>
+                `;
+                elements.couponList.appendChild(couponEl);
+            });
+        } else {
             elements.couponList.innerHTML = '<p class="muted">利用可能なクーポンはありません。</p>';
-          }
         }
-      };
+    }
+  }
 
-      const openModal = () => {
-        elements.backdrop.style.display = 'block';
-        elements.modal.style.display = 'block';
-        // 開いた時に、もしユーザー登録済みなら最新の状態を取得
-        if (loyaltyState.userId) {
-          fetchState();
+
+  /**
+   * Fetches the latest state from the server
+   */
+  async function fetchState() {
+    if (!loyaltyState.userId) {
+      // If there's no user, just ensure the UI is in a logged-out state
+      loyaltyState.points = 0;
+      loyaltyState.coupons = [];
+      updateLoyaltyUI();
+      return;
+    }
+
+    try {
+        const result = await callApiWithResponse('loyalty_get_state', { userId: loyaltyState.userId });
+        if (result && result.ok) {
+          updateLoyaltyState(result);
+        } else {
+           // Failed to fetch state, do nothing, error is handled by callApiWithResponse reject
         }
-      };
+    } catch (error) {
+        // Error is handled by callApiWithResponse reject, maybe show a generic error to user
+    }
+  }
 
-      const closeModal = () => {
-        elements.backdrop.style.display = 'none';
-        elements.modal.style.display = 'none';
-        stopQrScanner();
-      };
+  /**
+   * Helper to update local state and UI from an API response
+   */
+  function updateLoyaltyState(apiResponse) {
+      loyaltyState.points = apiResponse.points || 0;
+      loyaltyState.coupons = apiResponse.coupons || [];
+      // Also update userId in case it was a new registration
+      if(apiResponse.userId) {
+          loyaltyState.userId = apiResponse.userId;
+          localStorage.setItem(LS_USER_ID_KEY, apiResponse.userId);
+      }
+      updateLoyaltyUI();
+  }
+
+
+  /**
+   * Handle the registration/update button click.
+   * This version implements an optimistic UI update.
+   */
+  function handleRegister() {
+    const userId = elements.userIdInput.value.trim();
+    if (!userId) {
+      alert("電話番号またはメールアドレスを入力してください。");
+      return;
+    }
+
+    // Disable button to prevent double-clicks
+    elements.registerBtn.disabled = true;
+    elements.registerBtn.textContent = "処理中...";
+
+    // Fire and forget: send the request but don't wait for the response.
+    callApiWithResponse('loyalty_register', {
+        userId: userId,
+      })
+      .then(response => {
+        // Log the actual response in the background for debugging.
+        console.log("API Response (background):", response);
+        // Silently update the state in the background
+        updateLoyaltyState(response);
+      })
+      .catch(error => {
+        // Log any errors in the background.
+        console.error("API Error (background):", error);
+      });
+
+    // Optimistically show success message immediately and re-enable the UI.
+    // We add a slight delay to make the "processing" message feel real.
+    setTimeout(() => {
+      alert("登録/更新を受け付けました。\nサーバー側で処理が実行されます。");
+      // Re-enable button
+      elements.registerBtn.disabled = false;
+      elements.registerBtn.textContent = "登録/更新";
+    }, 1500); // 1.5 second delay
+  }
+  
+  /**
+   * Handle check-in from a URL token (legacy QR code scanner)
+   */
+  async function handleCheckinFromToken(token){
+    alert("チェックイン処理中です...");
+    try {
+        // We can't get a direct response, so we just fetch state after a delay
+        await callApiWithResponse('loyalty_checkin', { token });
+        setTimeout(() => {
+            elements.modal.style.display='block'; // Show modal to see result
+            fetchState(); // Fetch updated state
+        }, 2000);
+    } catch (error) {
+        alert("チェックインに失敗しました: " + error.message);
+    }
+  }
+
+
+  /**
+   * Initialize the loyalty program script
+   */
+  function initLoyalty() {
+    // 1. Get or create device ID
+    let deviceId = localStorage.getItem(LS_DEVICE_ID_KEY);
+    if (!deviceId) {
+      deviceId = self.crypto?.randomUUID ? self.crypto.randomUUID() : `dev_${Date.now()}_${Math.random()}`;
+      localStorage.setItem(LS_DEVICE_ID_KEY, deviceId);
+    }
+    loyaltyState.deviceId = deviceId;
+
+    // 2. Load userId from storage
+    const userId = localStorage.getItem(LS_USER_ID_KEY);
+    if (userId) {
+      loyaltyState.userId = userId;
+      if (elements.userIdInput) elements.userIdInput.value = userId;
+    }
+
+    // 3. Add event listeners
+    elements.openBtn?.addEventListener('click', () => {
+      //
+      // ★RACE CONDITION FIX:
+      // Only fetch state if a user ID already exists.
+      // Do not fetch for new users, as this would conflict with the registration call.
+      //
+      if (loyaltyState.userId) {
+        fetchState(); // Fetch latest state when modal is opened for an existing user.
+      }
+    });
+    elements.registerBtn?.addEventListener('click', handleRegister);
+
+    // 4. Handle check-in from QR code scan if token is present
+    handleCheckinFromUrl();
+  }
+
+  /**
+   * Handle check-in from a URL token
+   */
+  async function handleCheckinFromUrl(){
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('checkinToken');
+
+    if (token) {
+      // Clean the URL immediately
+      const cleanUrl = window.location.pathname + window.location.hash;
+      history.replaceState(null, '', cleanUrl);
+
+      // Show a loading indicator
+      alert("チェックイン処理中...");
+
+      try {
+        const result = await callApiWithResponse("loyalty_checkin_from_qr", { token: token });
+
+        if (result && result.ok) {
+          alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
+          // Update state and UI from response
+          updateLoyaltyState(result);
+          elements.modal.style.display = 'block'; // Show modal to see result
+        } else {
+          alert("チェックインエラー: " + (result?.message || result?.error || "不明なエラー"));
+        }
+      } catch (error) {
+        alert("チェックインに失敗しました: " + error.message);
+      }
+    }
+  }
+  
+  /**
+   * Calls API using a hidden iframe and postMessage, expecting a JSON response.
+   * This is the core communication function.
+   * DIAGNOSTIC VERSION: Uses console.log for non-blocking diagnostics.
+   */
+  function callApiWithResponse(action, payload = {}) {
+    return new Promise((resolve, reject) => {
+      if (loyaltyState.isLoading) {
+        return reject(new Error("A request is already in progress."));
+      }
+      loyaltyState.isLoading = true;
+
+      const requestId = newClientRequestId_();
+      const iframeName = "gas_target_" + requestId;
+      let form, iframe;
       
-      // --- API呼び出し ---
-      const apiCall = (funcName, ...args) => {
-        return new Promise((resolve, reject) => {
-          if (typeof google === 'undefined' || !google.script.run) {
-            reject({ message: "Google APIが読み込めていません。ページを再読み込みしてください。" });
-            return;
-          }
-          google.script.run
-            .withSuccessHandler(resolve)
-            .withFailureHandler(reject)
-            [funcName](...args);
-        });
+      let settled = false;
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        
+        window.removeEventListener('message', handleMessage);
+        clearTimeout(timeoutId);
+        
+        if (form && form.parentNode) form.parentNode.removeChild(form);
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        
+        loyaltyState.isLoading = false;
       };
 
-      const fetchState = async () => {
-        if (!loyaltyState.userId) return;
-        setLoading(true, "読込中...");
-        try {
-          const result = await apiCall('loyalty_getState', loyaltyState.userId);
-          if (result && result.ok) {
-            loyaltyState.points = result.points;
-            loyaltyState.coupons = result.coupons;
-          } else {
-            throw new Error(result.message || "ユーザー情報の取得に失敗しました。");
-          }
-        } catch (err) {
-          alert(`エラー: ${err.message}`);
-        } finally {
-          setLoading(false);
-          updateLoyaltyUI();
-        }
-      };
-
-      // --- イベントハンドラ ---
-      const handleRegister = async () => {
-        const userId = elements.userIdInput.value.trim();
-        if (!userId) {
-          alert("電話番号またはメールアドレスを入力してください。");
+      const handleMessage = (event) => {
+        let data;
+        if (typeof event.data !== 'string') {
           return;
         }
-        setLoading(true, "登録中...");
+
         try {
-          const result = await apiCall('loyalty_register', userId, loyaltyState.deviceId);
-          if (result && result.ok) {
-            loyaltyState.userId = result.userId;
-            loyaltyState.points = result.points;
-            loyaltyState.coupons = result.coupons;
-            localStorage.setItem(LS_USER_ID_KEY, result.userId);
-            alert("ポイントカードを作成しました！");
+          data = JSON.parse(event.data);
+        } catch (e) {
+          return;
+        }
+
+        if (data && data.request_id === requestId) {
+          cleanup();
+
+          if (data.ok) {
+            resolve(data);
           } else {
-            throw new Error(result.message || "登録に失敗しました。");
+            const serverError = new Error(data.message || data.error || 'APIからエラーが返されました。');
+            serverError.stack = data.stack || serverError.stack;
+            reject(serverError);
           }
-        } catch (err) {
-          alert(`エラー: ${err.message}`);
-        } finally {
-          setLoading(false);
-          updateLoyaltyUI();
-        }
-      };
-      
-      const handleCheckin = async (qrData) => {
-        setLoading(true, "チェックイン中...");
-        try {
-          const result = await apiCall('loyalty_checkin', qrData, loyaltyState.userId);
-          if (result && result.ok) {
-            loyaltyState.points = result.points;
-            loyaltyState.coupons = result.coupons;
-            let successMessage = `チェックインしました！\n現在のポイント: ${result.points}p`;
-            if (result.newCouponIssued) {
-              successMessage += "\n\nおめでとうございます！新しいクーポンが発行されました！";
-            }
-            alert(successMessage);
-          } else {
-            throw new Error(result.message || "チェックインに失敗しました。");
-          }
-        } catch (err) {
-          alert(`エラー: ${err.message}`);
-        } finally {
-          setLoading(false);
-          updateLoyaltyUI();
         }
       };
 
-      const handleUseCoupon = async (couponId) => {
-        if (!confirm("このクーポンを使用しますか？\n（必ず店員の前で操作してください）")) return;
+      const timeoutId = setTimeout(() => {
+        reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
+        cleanup();
+      }, 30000);
 
-        setLoading(true, "使用中...");
-        try {
-          const result = await apiCall('loyalty_useCoupon', couponId, loyaltyState.userId);
-          if (result && result.ok) {
-            loyaltyState.points = result.points;
-            loyaltyState.coupons = result.coupons;
-            alert("クーポンを使用しました。");
-          } else {
-            throw new Error(result.message || "クーポンの使用に失敗しました。");
-          }
-        } catch (err) {
-          alert(`エラー: ${err.message}`);
-        } finally {
-          setLoading(false);
-          updateLoyaltyUI();
-        }
-      };
+      window.addEventListener('message', handleMessage);
 
-      // --- QRスキャナ関連 ---
-      const stopQrScanner = () => {
-        if (html5QrCode && html5QrCode.isScanning) {
-          html5QrCode.stop().catch(err => console.error("QRスキャナの停止に失敗.", err));
-        }
-        elements.qrScannerUi.style.display = 'none';
-      };
-      window.stopQrScanner = stopQrScanner;
+      try {
+        iframe = document.createElement('iframe');
+        iframe.name = iframeName;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
 
-      const startQrScanner = () => {
-        if (!loyaltyState.userId) return;
-        elements.qrScannerUi.style.display = 'block';
-        elements.qrReaderStatus.textContent = "カメラを起動中...";
+        form = document.createElement('form');
+        form.method = 'POST';
+        form.action = PUBLIC_API_URL;
+        form.target = iframeName;
 
-        html5QrCode = new Html5Qrcode("qr-reader");
-        const qrCodeSuccess = (decodedText) => {
-          stopQrScanner();
-          handleCheckin(decodedText);
+        const fields = {
+          action,
+          key: SITE_KEY,
+          origin: location.origin || '*',
+          request_id: requestId,
+          deviceId: loyaltyState.deviceId,
+          ...payload
         };
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        
-        html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccess)
-          .catch(err => {
-            elements.qrReaderStatus.textContent = "カメラの起動に失敗";
-            alert("カメラの起動に失敗しました。ブラウザのカメラアクセス許可を確認してください。");
-            stopQrScanner();
-          });
-      };
 
-      // --- 初期化処理 ---
-      const init = () => {
-        // Device IDの取得/生成
-        let deviceId = localStorage.getItem(LS_DEVICE_ID_KEY);
-        if (!deviceId) {
-          deviceId = self.crypto?.randomUUID ? self.crypto.randomUUID() : `dev_${Date.now()}_${Math.random()}`;
-          localStorage.setItem(LS_DEVICE_ID_KEY, deviceId);
-        }
-        loyaltyState.deviceId = deviceId;
-
-        // User IDの取得
-        loyaltyState.userId = localStorage.getItem(LS_USER_ID_KEY);
-
-        // UIの初期化
-        updateLoyaltyUI();
-
-        // イベントリスナーの設定
-        elements.openBtn?.addEventListener('click', openModal);
-        elements.closeBtn?.addEventListener('click', closeModal);
-        elements.backdrop?.addEventListener('click', closeModal);
-        elements.registerBtn?.addEventListener('click', handleRegister);
-        elements.startQrScanBtn?.addEventListener('click', startQrScanner);
-        elements.closeQrScannerBtn?.addEventListener('click', stopQrScanner);
-        elements.couponList?.addEventListener('click', (e) => {
-          if (e.target.classList.contains('use-coupon-btn')) {
-            const couponId = e.target.dataset.couponId;
-            handleUseCoupon(couponId);
+        for (const key in fields) {
+          if (fields[key] !== undefined) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = fields[key];
+            form.appendChild(input);
           }
-        });
+        }
+        document.body.appendChild(form);
 
-        // タブ切り替えロジック
-        const tabs = elements.modal.querySelectorAll('[role="tab"]');
-        tabs.forEach(tab => {
-          tab.addEventListener('click', () => {
-            elements.modal.querySelectorAll('[role="tab"]').forEach(t => t.setAttribute('aria-selected', 'false'));
-            elements.modal.querySelectorAll('[role="tabpanel"]').forEach(p => p.classList.remove('active'));
-            tab.setAttribute('aria-selected', 'true');
-            $(tab.id.replace('tab', 'pane')).classList.add('active');
-            if (tab.id !== 'tabPoint') stopQrScanner();
-          });
-        });
-      };
-
-      // --- 実行 ---
-      window.addEventListener('load', init);
-
-    })();
-
-    // 既存のモーダル表示・タブ切り替えロジックは新しいスクリプトに統合されたため、ここでは不要
-    
-    // 既存の予約フォーム・タブロジック
-    (function(){
-      const tabReserve = document.getElementById('tabReserve');
-      const tabFeedback = document.getElementById('tabFeedback');
-      const panelReserve = document.getElementById('panelReserve');
-      const panelFeedback = document.getElementById('panelFeedback');
-      if(!tabReserve || !tabFeedback || !panelReserve || !panelFeedback) return;
-  
-      function activate(which){
-        const isReserve = which === 'reserve';
-        tabReserve.classList.toggle('is-active', isReserve);
-        tabFeedback.classList.toggle('is-active', !isReserve);
-        panelReserve.hidden = !isReserve;
-        panelFeedback.hidden = isReserve;
+        form.submit();
+      } catch (e) {
+        reject(e);
+        cleanup();
       }
-      tabReserve.addEventListener('click', (e)=>{ e.preventDefault(); activate('reserve'); });
-      tabFeedback.addEventListener('click', (e)=>{ e.preventDefault(); activate('feedback'); });
-    })();
+    });
+  }
 
+
+  // Run initializer after main page content is loaded
+  window.addEventListener('load', initLoyalty);
+
+})();
 </script>
 
 
 
-  </body>
+</body>
 </html>
