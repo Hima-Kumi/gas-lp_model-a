@@ -1493,62 +1493,74 @@ window.onload = function() {
   /**
    * Starts the QR Code scanner
    */
-  function startQrScanner() {
-    // This function is called when startQrScanBtn is clicked.
-    // The button is disabled until userId is confirmed, so this check is redundant but safe.
-    if (!loyaltyState.userId) {
-        alert("先に「登録/更新」ボタンでユーザー登録を完了してください。");
-        elements.userIdInput?.focus();
+    function startQrScanner() {
+      if (!loyaltyState.userId) {
+          alert("先に「登録/更新」ボタンでユーザー登録を完了してください。");
+          elements.userIdInput?.focus();
+          return;
+      }
+      if (!elements.qrScannerUi || typeof Html5Qrcode === "undefined") {
+        alert("QRスキャナの読み込みに失敗しました。ページを再読み込みしてください。");
         return;
+      }
+  
+      elements.qrScannerUi.style.display = 'block';
+      if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "カメラを起動中...";
+  
+      if (!html5QrCode) {
+          html5QrCode = new Html5Qrcode("qr-reader");
+      }
+  
+      const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+        stopQrScanner();
+        if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "コードを検証中...";
+  
+        let storeKey = '';
+        try {
+          const url = new URL(decodedText);
+          storeKey = url.searchParams.get('store');
+        } catch (e) {
+          alert("無効なQRコードです。（URL形式ではありません）");
+          return;
+        }
+  
+        // --- Client-side validation, as per user request ---
+        const VALID_STORE_KEY = "ranzu";
+        if (storeKey !== VALID_STORE_KEY) {
+          alert(`無効な店舗のQRコードです。`);
+          return;
+        }
+  
+        // Validation passed, now call the backend with only the userId.
+        callApiWithResponse("loyalty_checkin_from_qr", { 
+            userId: loyaltyState.userId 
+          })
+          .then(result => {
+            if (result && result.ok) {
+              alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
+              updateLoyaltyState(result);
+            } else {
+              const errorMessage = "チェックインエラー: " + (result?.message || result?.error || "不明なエラー");
+              alert(errorMessage);
+            }
+          })
+          .catch(err => {
+            const criticalError = "チェックインに失敗しました: " + err.message;
+            alert(criticalError);
+          });
+      };
+  
+      const config = { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 },
+      };
+  
+      html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+          .catch(err => {
+              console.error("Unable to start scanning.", err);
+              if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "カメラの起動に失敗しました。";
+          });
     }
-    if (!elements.qrScannerUi || typeof Html5Qrcode === "undefined") {
-      alert("QRスキャナの読み込みに失敗しました。ページを再読み込みしてください。");
-      return;
-    }
-
-    elements.qrScannerUi.style.display = 'block';
-    if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "カメラを起動中...";
-
-    // Create a new scanner instance if it doesn't exist or has been cleared.
-    if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("qr-reader");
-    }
-
-    const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-      stopQrScanner(); // Stop scanning immediately on success
-      
-      if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "コードを検証中...";
-
-      // It is assumed the QR code contains a specific token for check-in.
-      // Let's call the backend to validate it.
-      callApiWithResponse("loyalty_checkin_from_qr", { qr_data: decodedText, userId: loyaltyState.userId })
-        .then(result => {
-          if (result && result.ok) {
-            alert(`チェックインしました！\n現在のポイント: ${result.points}p` + (result.newCouponIssued ? "\n\n新しいクーポンが発行されました！" : ""));
-            updateLoyaltyState(result);
-            // UI is already hidden by stopQrScanner
-          } else {
-            const errorMessage = "チェックインエラー: " + (result?.message || result?.error || "不明なエラー");
-            alert(errorMessage);
-          }
-        })
-        .catch(err => {
-          const criticalError = "チェックインに失敗しました: " + err.message;
-          alert(criticalError);
-        });
-    };
-
-    const config = { 
-      fps: 10, 
-      qrbox: { width: 250, height: 250 },
-    };
-
-    html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
-        .catch(err => {
-            console.error("Unable to start scanning.", err);
-            if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "カメラの起動に失敗しました。";
-        });
-  }
 
   /**
    * Updates the loyalty UI based on the current state
