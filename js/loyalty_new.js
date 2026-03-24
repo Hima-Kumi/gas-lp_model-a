@@ -288,14 +288,8 @@
       stopQrScanner();
       if(elements.qrReaderStatus) elements.qrReaderStatus.textContent = "コードを検証中...";
 
-      let storeKey = '';
-      try {
-        const url = new URL(decodedText);
-        storeKey = url.searchParams.get('store');
-      } catch (e) {
-        alert("無効なQRコードです。（URL形式ではありません）");
-        return;
-      }
+      // Per user specification, directly compare the trimmed QR text against the valid store key.
+      const storeKey = decodedText.trim();
 
       if (storeKey !== VALID_STORE_KEY) {
         alert(`無効な店舗のQRコードです。`);
