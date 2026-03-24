@@ -290,9 +290,22 @@
 
       // Per user specification, directly compare the trimmed QR text against the valid store key.
       const storeKey = decodedText.trim();
+      
+      console.log(`[QR DEBUG] Decoded Text (raw): "${decodedText}"`);
+      console.log(`[QR DEBUG] Trimmed storeKey: "${storeKey}"`);
+      console.log(`[QR DEBUG] Expected VALID_STORE_KEY: "${VALID_STORE_KEY}"`);
 
       if (storeKey !== VALID_STORE_KEY) {
-        alert(`無効な店舗のQRコードです。`);
+        const debugMessage = `無効な店舗のQRコードです。
+
+[読み取られたキー]
+"${storeKey}"
+
+[期待されるキー]
+"${VALID_STORE_KEY}"
+
+QRコード側のデータに予期せぬ空白文字などが含まれている可能性があります。`;
+        alert(debugMessage);
         return;
       }
 
