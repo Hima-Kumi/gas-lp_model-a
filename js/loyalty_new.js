@@ -58,8 +58,10 @@
   };
 
   // ============================================================
-  // API Communication (hashchange method)
+  // API Communication (postMessage method)
   // ============================================================
+
+  const pendingRequests = new Map();
 
   function newClientRequestId_(){
     try { 
@@ -70,9 +72,36 @@
     return "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
   }
 
-  function callApiWithResponse(action, payload = {}) {
-    console.log(`%c[DIAGNOSTIC] Preparing API call (hashchange method)...`, 'color: blue;', { action, payload });
+  // Centralized message handler for all API responses from our GAS
+  window.addEventListener("message", (event) => {
+    // Security and Sanity checks
+    if (!event.data || !event.data.gasResponse) {
+      // This isn't a message from our script, ignore it.
+      return;
+    }
 
+    const { reqId, payload } = event.data;
+    
+    // Check if we have a pending request with this ID
+    if (pendingRequests.has(reqId)) {
+      console.log(`%c[DIAGNOSTIC] Request ID MATCHED! requestId: ${reqId}`, 'color: green; font-weight: bold;');
+      const { resolve, reject, cleanup } = pendingRequests.get(reqId);
+
+      cleanup(); // Cleans up iframe/form/timeout
+
+      if (payload && payload.ok) {
+        resolve(payload);
+      } else {
+        const serverError = new Error(payload.message || payload.error || 'An unknown API error occurred.');
+        serverError.stack = payload.stack; // Attach server stack if available
+        reject(serverError);
+      }
+      
+      pendingRequests.delete(reqId);
+    }
+  });
+
+  function callApiWithResponse(action, payload = {}) {
     return new Promise((resolve, reject) => {
       if (loyaltyState.isLoading) {
         console.warn('%c[DIAGNOSTIC] API call blocked: another request is in progress.', 'color: orange;');
@@ -83,86 +112,28 @@
       const requestId = newClientRequestId_();
       const iframeName = "gas_target_" + requestId;
       let form, iframe;
-      
-      console.log(`%c[DIAGNOSTIC] Starting API call. Waiting for hashchange.`, 'color: blue; font-weight: bold;', { action, requestId });
-
-      let settled = false;
-      const cleanup = () => {
-        if (settled) return;
-        settled = true;
-        
-        console.log(`%c[DIAGNOSTIC] Cleaning up for requestId: ${requestId}`, 'color: gray;');
-        window.removeEventListener('hashchange', handleHashChange);
-        
-        if (window.location.hash.startsWith('#gas_response=')) {
-          history.replaceState(null, '', window.location.pathname + window.location.search);
-        }
-
-        clearTimeout(timeoutId);
-        
-        if (form && form.parentNode) form.parentNode.removeChild(form);
-        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        
-        loyaltyState.isLoading = false;
-      };
-
-      const handleHashChange = () => {
-        const hash = window.location.hash;
-        console.log(`%c[DIAGNOSTIC] hashchange event detected. Hash: ${hash}`, 'color: green;');
-
-        if (!hash.startsWith('#gas_response=')) {
-          console.log('[DIAGNOSTIC] ...but it is not a gas_response hash. Ignoring.');
-          return;
-        }
-
-        const urlSafeBase64 = hash.substring('#gas_response='.length);
-        
-        try {
-          let base64 = urlSafeBase64.replace(/-/g, '+').replace(/_/g, '/');
-          while (base64.length % 4) {
-            base64 += '=';
-          }
-          const binaryString = atob(base64);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-          }
-          const decoder = new TextDecoder('utf-8');
-          const jsonPayloadString = decoder.decode(bytes);
-          const data = JSON.parse(jsonPayloadString);
-
-          console.log(`%c[DIAGNOSTIC] Decoded hash data:`, 'color: green;', data);
-
-          if (data && data.request_id === requestId) {
-            console.log(`%c[DIAGNOSTIC] Request ID MATCHED! requestId: ${requestId}`, 'color: green; font-weight: bold;');
-            cleanup();
-            if (data.ok) {
-              resolve(data);
-            } else {
-              const serverError = new Error(data.message || data.error || 'API Error');
-              serverError.stack = data.stack;
-              reject(serverError);
-            }
-          } else {
-            console.warn(`%c[DIAGNOSTIC] Request ID MISMATCH.`, 'color: orange;', {
-              expected: requestId,
-              received: data ? data.request_id : 'N/A'
-            });
-          }
-        } catch (e) {
-          console.error(`%c[DIAGNOSTIC] Failed to parse response from hash.`, 'color: red;', e);
-          cleanup();
-          reject(new Error('サーバーからの応答の解析に失敗しました。'));
-        }
-      };
 
       const timeoutId = setTimeout(() => {
-        console.error(`%c[DIAGNOSTIC] API call TIMEOUT for requestId: ${requestId}`, 'color: red; font-weight: bold;');
-        cleanup();
-        reject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
-      }, 30000);
+        if (pendingRequests.has(requestId)) {
+            console.error(`%c[DIAGNOSTIC] API call TIMEOUT for requestId: ${requestId}`, 'color: red; font-weight: bold;');
+            const { reject: pendingReject, cleanup } = pendingRequests.get(requestId);
+            cleanup();
+            pendingRequests.delete(requestId);
+            pendingReject(new Error("サーバーからの応答がありませんでした (30秒タイムアウト)。"));
+        }
+      }, 30000); // 30 second timeout
 
-      window.addEventListener('hashchange', handleHashChange);
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        if (form && form.parentNode) form.parentNode.removeChild(form);
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        loyaltyState.isLoading = false;
+        console.log(`%c[DIAGNOSTIC] Cleaned up for requestId: ${requestId}`, 'color: gray;');
+      };
+
+      // Store the promise handlers and cleanup function
+      pendingRequests.set(requestId, { resolve, reject, cleanup });
+      console.log(`%c[DIAGNOSTIC] Starting API call. Waiting for postMessage.`, 'color: blue; font-weight: bold;', { action, requestId });
 
       try {
         iframe = document.createElement('iframe');
@@ -178,14 +149,14 @@
         const fields = {
           action,
           key: SITE_KEY,
-          origin: location.origin || '*',
+          origin: window.location.origin, // Send the actual client origin for security
           request_id: requestId,
           deviceId: loyaltyState.deviceId,
           ...payload
         };
 
         for (const key in fields) {
-          if (fields[key] !== undefined) {
+          if (fields[key] !== undefined && fields[key] !== null) {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = key;
@@ -196,8 +167,12 @@
         document.body.appendChild(form);
         form.submit();
       } catch (e) {
+        console.error(`%c[DIAGNOSTIC] Failed to submit form for API call.`, 'color: red;', e);
+        if (pendingRequests.has(requestId)) {
+            cleanup();
+            pendingRequests.delete(requestId);
+        }
         reject(e);
-        cleanup();
       }
     });
   }
@@ -374,11 +349,6 @@
   // Initializer
   // ============================================================
   function init() {
-    // Clean up hash from previous failed attempts if any
-    if (window.location.hash.startsWith('#gas_response=')) {
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-
     let deviceId = localStorage.getItem(LS_DEVICE_ID_KEY);
     if (!deviceId) {
       deviceId = self.crypto?.randomUUID ? self.crypto.randomUUID() : `dev_${Date.now()}_${Math.random()}`;
