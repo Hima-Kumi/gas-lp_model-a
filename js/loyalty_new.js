@@ -7,7 +7,7 @@
   // ============================================================
   // Configuration
   // ============================================================
-  const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbxngYlwl6HDcXcJ35m2ic46jDuYGyGUGCRZbOO7vjk486rGMSFepu6OCIg07PKmrDk4/exec";
+  const PUBLIC_API_URL = "https://script.google.com/macros/s/AKfycbz3jAxjFwED1yzQgS0KsCd6LHzh5hxnnzxGm9_B3TnkFHngvOnp_uTMdEDkFkCLhMU4/exec";
   const SITE_KEY = "model-a";
   const LS_DEVICE_ID_KEY = "loyaltyDeviceId";
   const LS_USER_ID_KEY = "loyaltyUserId";
