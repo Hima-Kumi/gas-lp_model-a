@@ -966,19 +966,18 @@ input[type],textarea,select,.input{
         feedbackForm.reset();
       });
 
-      // 予約フォーム内の各項目（名前、メール、電話、日時、人数、要望）に適用
-        const reserveFormElements = document.querySelectorAll('#reserveForm input, #reserveForm textarea, #reserveForm select');
+      // 予約フォームとご感想フォームの両方の項目を対象にする
+      const allFormElements = document.querySelectorAll('#reserveForm input, #reserveForm textarea, #reserveForm select, #feedbackForm input, #feedbackForm textarea');
 
-        reserveFormElements.forEach(el => {
-          el.addEventListener('keydown', (e) => {
-            // Enterキー（Returnキー）が押された場合
-            if (e.key === 'Enter') {
-              // テキストエリア（ご要望）で改行したい場合は除外することも可能ですが、
-              // ズーム解除を優先するため一律でフォーカスを外します
-              el.blur(); 
-            }
-          });
+      allFormElements.forEach(el => {
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            // 本文（textarea）で改行したい場合は e.shiftKey などで判定も可能ですが、
+            // ズーム解除を優先する場合は一律 blur() させます
+            el.blur(); 
+          }
         });
+      });
 
     })();
 
