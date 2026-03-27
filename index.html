@@ -108,16 +108,19 @@
       box-shadow: var(--shadow-hover);
     }
 
-    input[type],textarea,select,.input{
-      width:100%;
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:1rem 1.1rem;
-      background:var(--muted);
-      outline:none;
-      min-width:0;
-      transition: box-shadow var(--speed) ease, border var(--speed) ease, background-color var(--speed) ease;
-    }
+    /* 126行目付近 */
+input[type],textarea,select,.input{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:1rem 1.1rem;
+  background:var(--muted);
+  outline:none;
+  min-width:0;
+  transition: box-shadow var(--speed) ease, border var(--speed) ease, background-color var(--speed) ease;
+  /* ↓ 追加：スマホの勝手なズームを防止するサイズ設定 */
+  font-size: 16px; 
+}
     input:focus,textarea:focus,select:focus{
       background-color: #fff;
       border-color: var(--brand);
@@ -962,6 +965,20 @@
         alert("ご感想・ご意見を受け付けました。店主が拝見します。");
         feedbackForm.reset();
       });
+
+      // 予約フォーム内の各項目（名前、メール、電話、日時、人数、要望）に適用
+        const reserveFormElements = document.querySelectorAll('#reserveForm input, #reserveForm textarea, #reserveForm select');
+
+        reserveFormElements.forEach(el => {
+          el.addEventListener('keydown', (e) => {
+            // Enterキー（Returnキー）が押された場合
+            if (e.key === 'Enter') {
+              // テキストエリア（ご要望）で改行したい場合は除外することも可能ですが、
+              // ズーム解除を優先するため一律でフォーカスを外します
+              el.blur(); 
+            }
+          });
+        });
 
     })();
 
